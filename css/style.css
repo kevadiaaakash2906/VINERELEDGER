@@ -1466,22 +1466,56 @@ input[type="checkbox"] {
   }
 
   .card-list {
+    display: none;
+  }
+
+  .card-list.active {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
   }
 
+  /* Mobile: KPI cards in 3 columns, 2 rows */
   .kpi-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-3);
   }
 
+  .kpi-card {
+    padding: var(--space-3);
+  }
+
+  .kpi-value {
+    font-size: 18px;
+  }
+
+  .kpi-label {
+    font-size: 10px;
+  }
+
+  .kpi-sub {
+    display: none;
+  }
+
+  /* Mobile: hide filter bar elements */
   .filter-bar {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
   }
 
-  .filter-bar select,
-  .filter-bar input[type="date"] {
+  .filter-bar #filterCustomer,
+  .filter-bar #filterDateFrom,
+  .filter-bar #filterDateTo,
+  .filter-bar #filterSaleStatus,
+  .filter-bar #clearFiltersBtn {
+    display: none !important;
+  }
+
+  .filter-bar .rate-note {
+    margin-left: 0;
+    font-size: 11px;
     width: 100%;
   }
 
