@@ -249,6 +249,10 @@ function renderTradeCards(rows) {
   // Click anywhere on card to open edit panel
   container.querySelectorAll('.trade-card').forEach(function(card) {
     card.addEventListener('click', function() {
+      if (ROLE === 'customer') {
+        showToast('View only — you do not have permission to edit trades', 'warning');
+        return;
+      }
       if (window.openEditTrade) window.openEditTrade(card.dataset.id);
     });
   });
