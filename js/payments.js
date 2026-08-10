@@ -10,6 +10,11 @@ window.openPaymentSearch = function() {
   renderPayResults('');
 };
 
+// Payment button click handler (defined here since payments.js loads after app.js)
+$('receivePaymentBtn').addEventListener('click', function() {
+  window.openPaymentSearch();
+});
+
 $('closePaymentSearch').addEventListener('click', closePaymentSearch);
 $('paymentSearchOverlay').addEventListener('click', closePaymentSearch);
 
@@ -36,18 +41,28 @@ function renderPayResults(query) {
   }
 
   if (!rows.length) {
-    container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-dim)">No pending payments found</div>';
+    container.innerHTML = '<div class="pay-empty">No pending payments found</div>';
     return;
   }
 
   container.innerHTML = rows.map(function(r) {
     var balance = parseFloat(r[DK.balanceDue]) || 0;
+    var status = (r[DK.paymentStatus] || 'Unpaid').trim();
+    var statusClass = status === 'Partial' ? 'status-partial' : 'status-unpaid';
     return '<div class="pay-result-item" data-id="' + r._id + '">' +
-      '<div class="pay-result-header">' +
-      '<span class="pay-result-title">' + r[DK.style] + ' · ' + r[DK.customer] + '</span>' +
-      '<span style="color:var(--warning);font-family:var(--font-mono)">$' + fmtMoney(balance) + '</span>' +
+      '<div class="pay-result-main">' +
+      '<div class="pay-result-left">' +
+      '<span class="pay-result-style">' + escapeHtml(r[DK.style] || '') + '</span>' +
+      '<span class="pay-result-sr">#' + r[DK.sr] + '</span>' +
       '</div>' +
-      '<div class="pay-result-meta">Sr. ' + r[DK.sr] + ' · Sold To: ' + (r[DK.soldTo] || '—') + ' · Status: ' + r[DK.paymentStatus] + '</div>' +
+      '<div class="pay-result-balance">$' + fmtMoney(balance) + '</div>' +
+      '</div>' +
+      '<div class="pay-result-details">' +
+      '<span class="pay-result-customer">' + escapeHtml(r[DK.customer] || '') + '</span>' +
+      '<span class="pay-result-soldto">Sold to ' + escapeHtml(r[DK.soldTo] || '—') + '</span>' +
+      '<span class="status-badge ' + statusClass + '">' + status + '</span>' +
+      '</div>' +
+      '<div class="pay-result-action">Tap to receive payment →</div>' +
       '</div>';
   }).join('');
 

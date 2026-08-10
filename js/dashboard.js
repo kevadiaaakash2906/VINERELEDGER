@@ -24,10 +24,10 @@ function renderKPIs() {
   $('hstat_3_label').textContent = 'Stock Cost';
   $('hstat_3').textContent = '$' + stockCost.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
-  // Reset colors from trading view
-  $('hstat_1').style.color = 'var(--accent)';
+  // Multicolored header stats
+  $('hstat_1').style.color = profit >= 0 ? 'var(--success)' : 'var(--error)';
   $('hstat_2').style.color = 'var(--accent)';
-  $('hstat_3').style.color = 'var(--accent)';
+  $('hstat_3').style.color = 'var(--warning)';
 
   $('kpiGrid').innerHTML =
     '<div class="kpi-card"><div class="kpi-label">Total Revenue</div>' +
