@@ -1803,3 +1803,24 @@ select:focus-visible {
   white-space: nowrap;
   display: inline-flex;
 }
+
+/* ============================================
+   CUSTOMER ROLE — READ ONLY INDICATORS
+   ============================================ */
+/* Trading table rows for customer — show as non-interactive */
+body.customer-role #tradingTable tbody tr[data-id] {
+  cursor: default;
+}
+
+body.customer-role #tradingTable tbody tr[data-id]:hover td {
+  background: transparent;
+}
+
+body.customer-role .trade-card {
+  cursor: default;
+}
+
+body.customer-role .trade-card:hover {
+  box-shadow: var(--shadow-0);
+  transform: none;
+}
