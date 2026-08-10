@@ -1441,10 +1441,6 @@ input[type="checkbox"] {
 /* ============================================
    RESPONSIVE
    ============================================ */
-@media (max-width: 1200px) {
-  .header-stats { display: none; }
-}
-
 @media (max-width: 900px) {
   .topbar {
     flex-wrap: wrap;
@@ -1459,6 +1455,11 @@ input[type="checkbox"] {
   /* NEW: hide search & refresh for all users on mobile */
   .topbar-right .search-wrap,
   .topbar-right #refreshBtn {
+    display: none !important;
+  }
+
+  /* NEW: hide empty topbar-right for customers (no buttons to show) */
+  body.customer-role .topbar-right {
     display: none !important;
   }
 
@@ -1503,26 +1504,10 @@ input[type="checkbox"] {
     display: none;
   }
 
-  /* Mobile: hide filter bar elements */
+  /* NEW: hide the filter bar on mobile — all controls inside are already hidden,
+     so it only renders as an empty bordered box */
   .filter-bar {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
-  }
-
-  .filter-bar #filterCustomer,
-  .filter-bar #filterDateFrom,
-  .filter-bar #filterDateTo,
-  .filter-bar #filterSaleStatus,
-  .filter-bar #clearFiltersBtn {
     display: none !important;
-  }
-
-  .filter-bar .rate-note {
-    margin-left: 0;
-    font-size: 11px;
-    width: 100%;
   }
 
   .field-row {
@@ -1533,39 +1518,6 @@ input[type="checkbox"] {
     max-width: 100%;
   }
 }
-
-@media (max-width: 600px) {
-  main { padding: var(--space-3); }
-
-  .kpi-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .kpi-value {
-    font-size: 22px;
-  }
-
-  .topbar-left {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-2);
-  }
-
-  .view-toggle .btn {
-    padding: 5px 12px;
-    font-size: 12px;
-  }
-
-  .card-summary {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .login-card {
-    margin: var(--space-4);
-    padding: var(--space-6);
-  }
-}
-
 /* ============================================
    ROLE-BASED COLUMN HIDING (Orders)
    ============================================ */
