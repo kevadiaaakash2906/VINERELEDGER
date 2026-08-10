@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#1E1B18">
 <title>VINÉRE Ledger — Orders</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=2">
 <base target="_blank">
 <base target="_blank">
 </head>
@@ -41,7 +41,7 @@
     </div>
     <div class="topbar-right">
       <div class="search-wrap">
-        <input id="search" placeholder="Search…" autocomplete="off">
+        <input id="search" placeholder="Search…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" onfocus="this.setAttribute('readonly','readonly');setTimeout(()=>this.removeAttribute('readonly'),1)">
         <button id="searchClear" class="search-clear" title="Clear search">&times;</button>
         <span id="resultCount" class="result-count"></span>
       </div>
@@ -89,20 +89,19 @@
 
         <table id="tradingTable" style="display:none;">
           <colgroup>
-            <col style="width:6%"><col style="width:10%"><col style="width:16%">
-            <col style="width:12%"><col style="width:10%"><col style="width:10%">
-            <col style="width:10%"><col style="width:12%"><col style="width:10%">
-            <col style="width:10%"><col style="width:8%"><col style="width:10%">
+            <col style="width:4%"><col style="width:8%"><col style="width:18%">
+            <col style="width:16%"><col style="width:8%"><col style="width:8%">
+            <col style="width:16%"><col style="width:7%"><col style="width:8%">
           </colgroup>
           <thead><tr>
             <th class="num">Sr.</th><th>Date</th><th>Item</th><th>Vendor</th>
-            <th class="num">Purchase $</th><th class="num">Sale $</th><th>Date Sold</th><th>Sold To</th>
-            <th class="num">Paid</th><th class="num">Balance</th><th>Status</th><th class="num">P/L</th>
+            <th class="num">Purchase $</th><th class="num">Sale $</th><th>Sold To</th>
+            <th>Status</th><th class="num">P/L</th>
           </tr></thead>
           <tbody id="tradeTbody">
-            <tr class="skeleton-row"><td colspan="12"><div class="skeleton-cell" style="width:100%"></div></td></tr>
-            <tr class="skeleton-row"><td colspan="12"><div class="skeleton-cell" style="width:100%"></div></td></tr>
-            <tr class="skeleton-row"><td colspan="12"><div class="skeleton-cell" style="width:100%"></div></td></tr>
+            <tr class="skeleton-row"><td colspan="9"><div class="skeleton-cell" style="width:100%"></div></td></tr>
+            <tr class="skeleton-row"><td colspan="9"><div class="skeleton-cell" style="width:100%"></div></td></tr>
+            <tr class="skeleton-row"><td colspan="9"><div class="skeleton-cell" style="width:100%"></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -236,7 +235,7 @@
 <div id="paymentSearchModal">
   <div class="panel-head"><h2>Receive Payment</h2><button id="closePaymentSearch">&times;</button></div>
   <div class="pay-search-body">
-    <input id="paySearchInput" placeholder="Search memo no., buyer, style, or customer…" autocomplete="off">
+    <input id="paySearchInput" placeholder="Search memo no., buyer, style, or customer…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" onfocus="this.setAttribute('readonly','readonly');setTimeout(()=>this.removeAttribute('readonly'),1)">
     <div id="payResults" class="pay-results"></div>
   </div>
 </div>
@@ -259,16 +258,16 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <!-- App scripts — load order matters -->
-<script src="js/utils.js"></script>
-<script src="js/api.js"></script>
-<script src="js/firebase.js"></script>
-<script src="js/app.js"></script>
-<script src="js/dashboard.js"></script>
-<script src="js/filters.js"></script>
-<script src="js/panel.js"></script>
-<script src="js/table.js"></script>
-<script src="js/payments.js"></script>
-<script src="js/trading.js"></script>
+<script src="js/utils.js?v=2"></script>
+<script src="js/api.js?v=2"></script>
+<script src="js/firebase.js?v=2"></script>
+<script src="js/app.js?v=2"></script>
+<script src="js/dashboard.js?v=2"></script>
+<script src="js/filters.js?v=2"></script>
+<script src="js/panel.js?v=2"></script>
+<script src="js/table.js?v=2"></script>
+<script src="js/payments.js?v=3"></script>
+<script src="js/trading.js?v=2"></script>
 
 </body>
 </html>
