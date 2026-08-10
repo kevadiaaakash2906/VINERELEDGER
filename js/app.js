@@ -78,10 +78,23 @@ window.login = async function() {
 
       try {
         var email = role + '@vinere.local';
-        await window.firebase.auth().createUserWithEmailAndPassword(email, input);
+        // Try sign-in first (avoids rate limit on createUser for existing accounts)
+        await window.firebase.auth().signInWithEmailAndPassword(email, input);
       } catch (err) {
-        if (err.code === 'auth/email-already-in-use') {
-          await window.firebase.auth().signInWithEmailAndPassword(email, input);
+        if (err.code === 'auth/user-not-found') {
+          // User doesn't exist yet — create them
+          try {
+            await window.firebase.auth().createUserWithEmailAndPassword(email, input);
+          } catch (createErr) {
+            console.error('Firebase create failed', createErr);
+            $('loginError').textContent = 'Auth error — check console';
+            showToast('Firebase auth failed: ' + createErr.message, 'error');
+            return;
+          }
+        } else if (err.code === 'auth/too-many-requests') {
+          $('loginError').textContent = 'Too many attempts — wait 1 minute and try again';
+          showToast('Too many login attempts. Please wait.', 'error', 4000);
+          return;
         } else {
           console.error('Firebase auth failed', err);
           $('loginError').textContent = 'Auth error — check console';
