@@ -1456,6 +1456,12 @@ input[type="checkbox"] {
     justify-content: flex-end;
   }
 
+  /* NEW: hide search & refresh for all users on mobile */
+  .topbar-right .search-wrap,
+  .topbar-right #refreshBtn {
+    display: none !important;
+  }
+
   #search {
     width: 100%;
     max-width: none;
