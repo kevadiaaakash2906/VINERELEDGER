@@ -1452,7 +1452,7 @@ input[type="checkbox"] {
     min-width: 0;
   }
 
-  /* Force-hide header stats on mobile — they duplicate the KPI cards below */
+  /* Hide duplicate header-stats row on mobile (KPI cards already show this data) */
   .header-stats {
     display: none !important;
   }
@@ -1462,13 +1462,13 @@ input[type="checkbox"] {
     justify-content: flex-end;
   }
 
-  /* Hide search & refresh for all users on mobile */
+  /* Hide search & refresh for ALL users on mobile */
   .topbar-right .search-wrap,
   .topbar-right #refreshBtn {
     display: none !important;
   }
 
-  /* Collapse empty topbar-right for customers (no buttons to show) */
+  /* Collapse empty topbar-right for customers (no action buttons) */
   body.customer-role .topbar-right {
     display: none !important;
   }
@@ -1514,7 +1514,7 @@ input[type="checkbox"] {
     display: none;
   }
 
-  /* Hide the filter bar on mobile — all inputs inside are already hidden */
+  /* Hide the filter bar shell on mobile — all inputs inside are already hidden */
   .filter-bar {
     display: none !important;
   }
@@ -1527,7 +1527,10 @@ input[type="checkbox"] {
     max-width: 100%;
   }
 
-  /* FIX: Balance card headers so right-side badges don't crowd the edge */
+  /* ============================================
+     FIX: Card header flex balance — prevents
+     right-side badges from crowding the edge
+     ============================================ */
   .card-header {
     gap: var(--space-3);
   }
@@ -1544,13 +1547,19 @@ input[type="checkbox"] {
 
   .card-header-right {
     flex-shrink: 0;
-    gap: 8px;
+    gap: 10px;
   }
 
+  .card-chevron {
+    margin-right: 2px;
+  }
+
+  /* Trading cards: keep right cluster tight but not edge-crowded */
   .trade-card .card-header-right {
     gap: 8px;
   }
-}/* ============================================
+}
+/* ============================================
    ROLE-BASED COLUMN HIDING (Orders)
    ============================================ */
 #ordersTable.seller-view,
