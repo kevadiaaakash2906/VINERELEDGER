@@ -170,6 +170,9 @@ body {
   height: 48px;
   width: auto;
   margin-bottom: var(--space-2);
+  padding: 16px 32px;
+  background: #1E1B18;
+  border-radius: var(--radius-pill);
 }
 
 #passInput {
