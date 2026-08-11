@@ -167,12 +167,11 @@ body {
 }
 
 .login-logo {
-  height: 48px;
+  height: 96px;
   width: auto;
-  margin-bottom: var(--space-2);
-  padding: 16px 32px;
-  background: #1E1B18;
-  border-radius: var(--radius-pill);
+  min-width: 200px;
+  margin-bottom: var(--space-4);
+  filter: invert(1) brightness(0.15);
 }
 
 #passInput {
