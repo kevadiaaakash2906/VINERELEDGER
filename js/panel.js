@@ -46,10 +46,10 @@ window.openOrderPanel = function(id) {
     $('f_diamAmount').value = order[DK.diamAmount] || '';
     $('f_lCharges').value = order[DK.lCharges] || '900';
     $('f_memoNo').value = order[DK.memoNo] || '';
+    updateMemoSummary();
     $('f_soldTo').value = order[DK.soldTo] || '';
     $('f_salePrice').value = order[DK.salePrice] || '';
     $('f_dateSold').value = order[DK.dateSold] || '';
-         updateMemoSummary();
 
     try { currentInstallments = JSON.parse(order[DK.paymentLog] || '[]'); } catch(e) { currentInstallments = []; }
     renderInstallments();
@@ -87,7 +87,7 @@ function closePanel() {
 }
 
 /* ============ LIVE PREVIEW ============ */
-['f_netWt','f_multiplier','f_lCharges','f_diamAmount','f_salePrice'].forEach(function(id) {
+['f_netWt','f_multiplier','f_lCharges','f_diamAmount','f_salePrice','f_memoNo'].forEach(function(id) {
   $(id).addEventListener('input', updatePreview);
 });
 
@@ -125,6 +125,7 @@ function updatePreview() {
   $('prev_balanceDue').textContent = salePrice ? '$' + fmtMoney(balance) : '—';
   $('prev_paymentStatus').textContent = status;
 }
+
 /* ============ MEMO SUMMARY ============ */
 function updateMemoSummary() {
   var memoNo = $('f_memoNo').value.trim().toUpperCase();
@@ -134,6 +135,7 @@ function updateMemoSummary() {
   var memoOrders = ORDERS.filter(function(o) { return o[DK.memoNo] === memoNo && o._id !== editingId; });
   var memoTrades = TRADING.filter(function(t) { return t[SHEET_KEYS.memoNo] === memoNo; });
 
+  // Include current order's values
   var currentSalePrice = parseFloat($('f_salePrice').value) || 0;
   var currentPaid = currentInstallments.reduce(function(s, i) { return s + (parseFloat(i.amount) || 0); }, 0);
 
@@ -177,6 +179,7 @@ $('addInstallmentBtn').addEventListener('click', function() {
   $('err_f_installment').textContent = '';
   renderInstallments();
   updatePreview();
+  updateMemoSummary();
 });
 
 function renderInstallments() {
@@ -194,6 +197,7 @@ window.removeInst = function(idx) {
   currentInstallments.splice(idx, 1);
   renderInstallments();
   updatePreview();
+  updateMemoSummary();
 };
 
 /* ============ SAVE ============ */
@@ -229,7 +233,8 @@ $('saveBtn').addEventListener('click', async function() {
   var lCharge = parseFloat($('f_lCharges').value) || 900;
   var diam = parseFloat($('f_diamAmount').value) || 0;
   var pgWt = net * mult;
-  var goldAmt = pgWt * 16000;
+  var goldRate = window.GOLD_RATE || 16000;
+  var goldAmt = pgWt * goldRate;
   var isFlatLaborSave = $('f_flatLabor') && $('f_flatLabor').checked;
   var laborAmt = isFlatLaborSave ? lCharge : net * lCharge;
   var subTotal = goldAmt + diam + laborAmt;
@@ -259,7 +264,7 @@ $('saveBtn').addEventListener('click', async function() {
   data[DK.laborAmt] = Math.round(laborAmt).toString();
   data[DK.subTotal] = Math.round(subTotal).toString();
   data[DK.usd] = usd.toFixed(2);
-data['Gold Rate'] = (window.GOLD_RATE || 16000).toString();
+  data['Gold Rate'] = (window.GOLD_RATE || 16000).toString();
   data[DK.memoNo] = $('f_memoNo').value.trim().toUpperCase();
   data[DK.soldTo] = $('f_soldTo').value.trim();
   data[DK.salePrice] = salePrice ? salePrice.toString() : '';
