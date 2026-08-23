@@ -23,6 +23,7 @@ window.openOrderPanel = function(id) {
   currentInstallments = [];
   renderInstallments();
   updatePreview();
+  updateMemoSummary();
 
   $('saveMsg').textContent = '';
   $('saveMsg').style.color = '';
@@ -46,10 +47,10 @@ window.openOrderPanel = function(id) {
     $('f_diamAmount').value = order[DK.diamAmount] || '';
     $('f_lCharges').value = order[DK.lCharges] || '900';
     $('f_memoNo').value = order[DK.memoNo] || '';
-    updateMemoSummary();
     $('f_soldTo').value = order[DK.soldTo] || '';
     $('f_salePrice').value = order[DK.salePrice] || '';
     $('f_dateSold').value = order[DK.dateSold] || '';
+    updateMemoSummary();
 
     try { currentInstallments = JSON.parse(order[DK.paymentLog] || '[]'); } catch(e) { currentInstallments = []; }
     renderInstallments();
@@ -124,7 +125,10 @@ function updatePreview() {
   $('prev_amountPaid').textContent = totalPaid ? '$' + fmtMoney(totalPaid) : '$0';
   $('prev_balanceDue').textContent = salePrice ? '$' + fmtMoney(balance) : '—';
   $('prev_paymentStatus').textContent = status;
+  updateMemoSummary();
 }
+
+
 
 /* ============ MEMO SUMMARY ============ */
 function updateMemoSummary() {
@@ -296,7 +300,7 @@ $('saveBtn').addEventListener('click', async function() {
   }
 });
 
-/* ============ DELETE + RENUMBER ============ */
+/* ============ DELETE ============ */
 var deleteTimer = null;
 var deleteProgress = 0;
 
