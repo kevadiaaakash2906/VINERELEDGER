@@ -14,13 +14,32 @@ function getMemoOrders(memoNo) {
   });
 }
 
+function getMemoTrades(memoNo) {
+  if (!memoNo) return [];
+  return TRADING.filter(function(t) {
+    return t[SHEET_KEYS.memoNo] === memoNo;
+  });
+}
+
 function getAggregatedPaymentLog(memoNo) {
   var orders = getMemoOrders(memoNo);
+  var trades = getMemoTrades(memoNo);
   var seen = {};
   var allPayments = [];
   orders.forEach(function(o) {
     var log = [];
     try { log = JSON.parse(o[DK.paymentLog] || '[]'); } catch(e) { log = []; }
+    log.forEach(function(p) {
+      var key = (p.amount || '0') + '|' + (p.date || '');
+      if (!seen[key]) {
+        seen[key] = true;
+        allPayments.push(p);
+      }
+    });
+  });
+  trades.forEach(function(t) {
+    var log = [];
+    try { log = JSON.parse(t[SHEET_KEYS.paymentLog] || '[]'); } catch(e) { log = []; }
     log.forEach(function(p) {
       var key = (p.amount || '0') + '|' + (p.date || '');
       if (!seen[key]) {
