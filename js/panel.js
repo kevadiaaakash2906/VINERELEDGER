@@ -211,20 +211,19 @@ function updateMemoSummary() {
   var memoTrades = TRADING.filter(function(t) { return t[SHEET_KEYS.memoNo] === memoNo; });
 
   var currentSalePrice = parseFloat($('f_salePrice').value) || 0;
-  var currentPaid = currentInstallments.reduce(function(s, i) { return s + (parseFloat(i.amount) || 0); }, 0);
+
+  // totalPaid comes from currentInstallments (already aggregated across all orders in memo)
+  var totalPaid = currentInstallments.reduce(function(s, i) { return s + (parseFloat(i.amount) || 0); }, 0);
 
   var totalBill = currentSalePrice;
-  var totalPaid = currentPaid;
   var itemCount = 1;
 
   memoOrders.forEach(function(o) {
     totalBill += parseFloat(o[DK.salePrice]) || 0;
-    totalPaid += parseFloat(o[DK.amountPaid]) || 0;
     itemCount++;
   });
   memoTrades.forEach(function(t) {
     totalBill += parseFloat(t[SHEET_KEYS.salePrice]) || 0;
-    totalPaid += parseFloat(t[SHEET_KEYS.amountPaid]) || 0;
     itemCount++;
   });
 
