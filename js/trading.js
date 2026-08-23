@@ -39,7 +39,7 @@ window.openEditTrade = function(id) {
   $('t_dateSold').value = trade[SHEET_KEYS.dateSold] || '';
   $('t_soldTo').value = trade[SHEET_KEYS.soldTo] || '';
   $('t_notes').value = trade[SHEET_KEYS.notes] || '';
-   $('t_memoNo').value = trade[SHEET_KEYS.memoNo] || '';
+  $('t_memoNo').value = trade[SHEET_KEYS.memoNo] || '';
 
   try { currentTradeInstallments = JSON.parse(trade[SHEET_KEYS.paymentLog] || '[]'); } catch(e) { currentTradeInstallments = []; }
   renderTradeInstallments();
@@ -103,7 +103,7 @@ $('addTradeInstallmentBtn').addEventListener('click', function() {
   if (!amt || amt <= 0 || !date) {
     $('err_t_installment').textContent = 'Enter valid amount and date';
     return;
-  }
+n  }
   currentTradeInstallments.push({ amount: amt, date: date });
   $('t_instAmount').value = '';
   $('t_instDate').value = '';
@@ -185,7 +185,7 @@ $('saveTradeBtn').addEventListener('click', async function() {
   data[SHEET_KEYS.paymentStatus] = status;
   data[SHEET_KEYS.paymentLog] = JSON.stringify(currentTradeInstallments);
   data[SHEET_KEYS.notes] = $('t_notes').value.trim();
-   data[SHEET_KEYS.memoNo] = $('t_memoNo').value.trim().toUpperCase();
+  data[SHEET_KEYS.memoNo] = $('t_memoNo').value.trim().toUpperCase();
 
   try {
     if (editingTradeId) {
@@ -209,7 +209,7 @@ $('saveTradeBtn').addEventListener('click', async function() {
   }
 });
 
-/* ============ DELETE ============ */
+/* ============ DELETE + RENUMBER ============ */
 var deleteTradeTimer = null;
 var deleteTradeProgress = 0;
 
@@ -243,6 +243,22 @@ function cancelDeleteTradeTimer() {
   btn.style.setProperty('--delete-progress', '0%');
 }
 
+async function renumberTradesAfterDelete(deletedSr) {
+  var toUpdate = TRADING.filter(function(r) {
+    return parseInt(r[SHEET_KEYS.sr]) > parseInt(deletedSr);
+  }).sort(function(a, b) {
+    return parseInt(a[SHEET_KEYS.sr]) - parseInt(b[SHEET_KEYS.sr]);
+  });
+  for (var i = 0; i < toUpdate.length; i++) {
+    var r = toUpdate[i];
+    var newSr = (parseInt(r[SHEET_KEYS.sr]) - 1).toString();
+    var data = {};
+    for (var k in r) data[k] = r[k];
+    data[SHEET_KEYS.sr] = newSr;
+    try { await window.updateTrading(r._id, data); } catch(e) { console.error('Renumber failed for trade', r._id, e); }
+  }
+}
+
 async function doDeleteTrade() {
   if (!editingTradeId) return;
   var trade = TRADING.find(function(r) { return r._id === editingTradeId; });
@@ -250,6 +266,7 @@ async function doDeleteTrade() {
 
   try {
     await window.deleteTrading(editingTradeId, srNo);
+    if (srNo) await renumberTradesAfterDelete(srNo);
     showToast('Trade deleted', 'success');
     closeTradePanel();
     await doFetchTrading();
