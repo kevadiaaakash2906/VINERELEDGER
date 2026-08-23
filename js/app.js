@@ -169,6 +169,10 @@ var SHEET_KEYS = {
 var ORDERS = [];
 var TRADING = [];
 var currentSearchQuery = '';
+var GOLD_RATE = 16000;
+window.GOLD_RATE = GOLD_RATE;
+window.batchUpdateGoldRate = batchUpdateGoldRate;
+window.loadGoldRate = loadGoldRate;
 
 var currentView = 'orders';
 var sortCol = 'sr';
@@ -176,15 +180,27 @@ var sortDesc = false;
 var currentPage = 1;
 var PAGE_SIZE = 50;
 
-var GOLD_RATE = 16000;
-window.GOLD_RATE = GOLD_RATE;
-
 /* ============ INIT ============ */
 async function initApp() {
   await doFetchOrders();
   await doFetchTrading();
+  await loadGoldRate();
   renderAll();
   initSwipeGestures();
+}
+
+async function loadGoldRate() {
+  try {
+    var settings = await window.fetchSettings();
+    if (settings && settings.rate) {
+      GOLD_RATE = settings.rate;
+      window.GOLD_RATE = settings.rate;
+      var input = $('goldRateInput');
+      if (input) input.value = settings.rate;
+    }
+  } catch (err) {
+    console.log('No saved gold rate found, using default');
+  }
 }
 
 /* ============ FETCH ORDERS ============ */
@@ -429,6 +445,7 @@ $('goldRateInput').addEventListener('change', async function() {
   if (!isNaN(val) && val > 0) {
     GOLD_RATE = val;
     window.GOLD_RATE = val;
+    try { await window.saveSettings(val); } catch(e) { console.error('Failed to save gold rate setting', e); }
     await batchUpdateGoldRate(val);
   }
 });
@@ -606,3 +623,4 @@ window.equalizeColumnWidths = equalizeColumnWidths;
 window.populateFilters = populateFilters;
 window.GOLD_RATE = GOLD_RATE;
 window.batchUpdateGoldRate = batchUpdateGoldRate;
+window.loadGoldRate = loadGoldRate;
