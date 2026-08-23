@@ -49,6 +49,7 @@ window.openOrderPanel = function(id) {
     $('f_soldTo').value = order[DK.soldTo] || '';
     $('f_salePrice').value = order[DK.salePrice] || '';
     $('f_dateSold').value = order[DK.dateSold] || '';
+         updateMemoSummary();
 
     try { currentInstallments = JSON.parse(order[DK.paymentLog] || '[]'); } catch(e) { currentInstallments = []; }
     renderInstallments();
@@ -98,7 +99,8 @@ function updatePreview() {
   var salePrice = parseFloat($('f_salePrice').value) || 0;
 
   var pgWt = netWt * multiplier;
-  var goldAmt = pgWt * 16000;
+  var goldRate = window.GOLD_RATE || 16000;
+  var goldAmt = pgWt * goldRate;
   var isFlatLabor = $('f_flatLabor') && $('f_flatLabor').checked;
   var laborAmt = isFlatLabor ? lCharges : netWt * lCharges;
   var subTotal = goldAmt + diamAmount + laborAmt;
@@ -122,6 +124,43 @@ function updatePreview() {
   $('prev_amountPaid').textContent = totalPaid ? '$' + fmtMoney(totalPaid) : '$0';
   $('prev_balanceDue').textContent = salePrice ? '$' + fmtMoney(balance) : '—';
   $('prev_paymentStatus').textContent = status;
+}
+/* ============ MEMO SUMMARY ============ */
+function updateMemoSummary() {
+  var memoNo = $('f_memoNo').value.trim().toUpperCase();
+  var el = $('memoSummary');
+  if (!memoNo) { el.style.display = 'none'; el.textContent = ''; return; }
+
+  var memoOrders = ORDERS.filter(function(o) { return o[DK.memoNo] === memoNo && o._id !== editingId; });
+  var memoTrades = TRADING.filter(function(t) { return t[SHEET_KEYS.memoNo] === memoNo; });
+
+  var currentSalePrice = parseFloat($('f_salePrice').value) || 0;
+  var currentPaid = currentInstallments.reduce(function(s, i) { return s + (parseFloat(i.amount) || 0); }, 0);
+
+  var totalBill = currentSalePrice;
+  var totalPaid = currentPaid;
+  var itemCount = 1;
+
+  memoOrders.forEach(function(o) {
+    totalBill += parseFloat(o[DK.salePrice]) || 0;
+    totalPaid += parseFloat(o[DK.amountPaid]) || 0;
+    itemCount++;
+  });
+  memoTrades.forEach(function(t) {
+    totalBill += parseFloat(t[SHEET_KEYS.salePrice]) || 0;
+    totalPaid += parseFloat(t[SHEET_KEYS.amountPaid]) || 0;
+    itemCount++;
+  });
+
+  var balance = totalBill - totalPaid;
+  var status = totalBill === 0 ? 'Not Sold' : (totalPaid >= totalBill ? 'Paid' : (totalPaid > 0 ? 'Partial' : 'Unpaid'));
+
+  el.innerHTML = '<div style="font-weight:600;margin-bottom:4px;">Memo Summary: ' + escapeHtml(memoNo) + ' (' + itemCount + ' items)</div>' +
+    '<div class="computed-row"><span class="label">Total Bill</span><span class="value">$' + fmtMoney(totalBill) + '</span></div>' +
+    '<div class="computed-row"><span class="label">Total Paid</span><span class="value">$' + fmtMoney(totalPaid) + '</span></div>' +
+    '<div class="computed-row"><span class="label">Balance Due</span><span class="value" style="color:' + (balance > 0 ? 'var(--error)' : 'var(--success)') + '">$' + fmtMoney(balance) + '</span></div>' +
+    '<div class="computed-row"><span class="label">Memo Status</span><span class="value">' + status + '</span></div>';
+  el.style.display = 'block';
 }
 
 /* ============ INSTALLMENTS ============ */
@@ -220,6 +259,7 @@ $('saveBtn').addEventListener('click', async function() {
   data[DK.laborAmt] = Math.round(laborAmt).toString();
   data[DK.subTotal] = Math.round(subTotal).toString();
   data[DK.usd] = usd.toFixed(2);
+data['Gold Rate'] = (window.GOLD_RATE || 16000).toString();
   data[DK.memoNo] = $('f_memoNo').value.trim().toUpperCase();
   data[DK.soldTo] = $('f_soldTo').value.trim();
   data[DK.salePrice] = salePrice ? salePrice.toString() : '';
