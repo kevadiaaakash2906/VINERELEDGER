@@ -323,7 +323,19 @@ $('saveBtn').addEventListener('click', async function() {
 
   var salePrice = parseFloat($('f_salePrice').value) || 0;
   var totalPaid = currentInstallments.reduce(function(s, i) { return s + (parseFloat(i.amount) || 0); }, 0);
-  if (salePrice && totalPaid > salePrice) { $('err_f_installment').textContent = 'Payments exceed sale price'; valid = false; }
+
+  // For memo orders, allow payments up to memo total bill
+  var memoNo = $('f_memoNo').value.trim().toUpperCase();
+  var maxAllowed = salePrice;
+  if (memoNo) {
+    var memoOrders = ORDERS.filter(function(o) { return o[DK.memoNo] === memoNo && o._id !== editingId; });
+    var memoTrades = TRADING.filter(function(t) { return t[SHEET_KEYS.memoNo] === memoNo; });
+    maxAllowed = salePrice +
+      memoOrders.reduce(function(s, o) { return s + (parseFloat(o[DK.salePrice]) || 0); }, 0) +
+      memoTrades.reduce(function(s, t) { return s + (parseFloat(t[SHEET_KEYS.salePrice]) || 0); }, 0);
+  }
+
+  if (salePrice && totalPaid > maxAllowed) { $('err_f_installment').textContent = 'Payments exceed total bill'; valid = false; }
 
   if (!valid) {
     $('saveMsg').textContent = 'Please fix the highlighted fields.';
