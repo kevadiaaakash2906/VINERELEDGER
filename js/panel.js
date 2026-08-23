@@ -6,6 +6,63 @@ var editingId = null;
 var currentInstallments = [];
 var readOnly = false;
 
+/* ============ MEMO HELPERS ============ */
+function getMemoOrders(memoNo) {
+  if (!memoNo) return [];
+  return ORDERS.filter(function(o) {
+    return o[DK.memoNo] === memoNo;
+  });
+}
+
+function getAggregatedPaymentLog(memoNo) {
+  var orders = getMemoOrders(memoNo);
+  var seen = {};
+  var allPayments = [];
+  orders.forEach(function(o) {
+    var log = [];
+    try { log = JSON.parse(o[DK.paymentLog] || '[]'); } catch(e) { log = []; }
+    log.forEach(function(p) {
+      var key = (p.amount || '0') + '|' + (p.date || '');
+      if (!seen[key]) {
+        seen[key] = true;
+        allPayments.push(p);
+      }
+    });
+  });
+  return allPayments.sort(function(a, b) {
+    return new Date(a.date || 0) - new Date(b.date || 0);
+  });
+}
+
+async function syncMemoPayments(memoNo, paymentLog, sourceId) {
+  var orders = getMemoOrders(memoNo);
+  var memoTotalBill = orders.reduce(function(s, o) { return s + (parseFloat(o[DK.salePrice]) || 0); }, 0);
+  var memoTotalPaid = paymentLog.reduce(function(s, p) { return s + (parseFloat(p.amount) || 0); }, 0);
+
+  for (var i = 0; i < orders.length; i++) {
+    var o = orders[i];
+    if (o._id === sourceId) continue;
+
+    var salePrice = parseFloat(o[DK.salePrice]) || 0;
+    var balance = salePrice - memoTotalPaid;
+    var status = 'Not Sold';
+    if (salePrice) {
+      if (memoTotalPaid >= memoTotalBill) status = 'Paid';
+      else if (memoTotalPaid > 0) status = 'Partial';
+      else status = 'Unpaid';
+    }
+
+    var data = {};
+    for (var k in o) data[k] = o[k];
+    data[DK.amountPaid] = memoTotalPaid.toString();
+    data[DK.balanceDue] = balance.toString();
+    data[DK.paymentStatus] = status;
+    data[DK.paymentLog] = JSON.stringify(paymentLog);
+
+    try { await window.updateOrder(o._id, data); } catch(e) { console.error('Memo sync failed for', o._id, e); }
+  }
+}
+
 window.openOrderPanel = function(id) {
   editingId = id || null;
   currentInstallments = [];
@@ -23,7 +80,6 @@ window.openOrderPanel = function(id) {
   currentInstallments = [];
   renderInstallments();
   updatePreview();
-  updateMemoSummary();
 
   $('saveMsg').textContent = '';
   $('saveMsg').style.color = '';
@@ -50,10 +106,16 @@ window.openOrderPanel = function(id) {
     $('f_soldTo').value = order[DK.soldTo] || '';
     $('f_salePrice').value = order[DK.salePrice] || '';
     $('f_dateSold').value = order[DK.dateSold] || '';
-    updateMemoSummary();
 
-    try { currentInstallments = JSON.parse(order[DK.paymentLog] || '[]'); } catch(e) { currentInstallments = []; }
+    // Load aggregated payment log for memo, or own log if no memo
+    var memoNo = order[DK.memoNo];
+    if (memoNo) {
+      currentInstallments = getAggregatedPaymentLog(memoNo);
+    } else {
+      try { currentInstallments = JSON.parse(order[DK.paymentLog] || '[]'); } catch(e) { currentInstallments = []; }
+    }
     renderInstallments();
+    updateMemoSummary();
 
     $('deleteBtn').style.display = (ROLE === 'staff') ? 'inline-flex' : 'none';
     readOnly = ROLE === 'customer';
@@ -92,6 +154,17 @@ function closePanel() {
   $(id).addEventListener('input', updatePreview);
 });
 
+// Load memo payments when typing memoNo on new orders
+$('f_memoNo').addEventListener('input', function() {
+  var memoNo = this.value.trim().toUpperCase();
+  if (memoNo && !editingId && !currentInstallments.length) {
+    currentInstallments = getAggregatedPaymentLog(memoNo);
+    renderInstallments();
+  }
+  updatePreview();
+  updateMemoSummary();
+});
+
 function updatePreview() {
   var netWt = parseFloat($('f_netWt').value) || 0;
   var multiplier = parseFloat($('f_multiplier').value) || 0.595;
@@ -128,8 +201,6 @@ function updatePreview() {
   updateMemoSummary();
 }
 
-
-
 /* ============ MEMO SUMMARY ============ */
 function updateMemoSummary() {
   var memoNo = $('f_memoNo').value.trim().toUpperCase();
@@ -139,7 +210,6 @@ function updateMemoSummary() {
   var memoOrders = ORDERS.filter(function(o) { return o[DK.memoNo] === memoNo && o._id !== editingId; });
   var memoTrades = TRADING.filter(function(t) { return t[SHEET_KEYS.memoNo] === memoNo; });
 
-  // Include current order's values
   var currentSalePrice = parseFloat($('f_salePrice').value) || 0;
   var currentPaid = currentInstallments.reduce(function(s, i) { return s + (parseFloat(i.amount) || 0); }, 0);
 
@@ -170,7 +240,7 @@ function updateMemoSummary() {
 }
 
 /* ============ INSTALLMENTS ============ */
-$('addInstallmentBtn').addEventListener('click', function() {
+$('addInstallmentBtn').addEventListener('click', async function() {
   var amt = parseFloat($('f_instAmount').value);
   var date = $('f_instDate').value;
   if (!amt || amt <= 0 || !date) {
@@ -183,7 +253,14 @@ $('addInstallmentBtn').addEventListener('click', function() {
   $('err_f_installment').textContent = '';
   renderInstallments();
   updatePreview();
-  updateMemoSummary();
+
+  var memoNo = $('f_memoNo').value.trim().toUpperCase();
+  if (memoNo && editingId) {
+    try {
+      await syncMemoPayments(memoNo, currentInstallments, editingId);
+      await doFetchOrders();
+    } catch(e) { console.error('Memo sync error', e); }
+  }
 });
 
 function renderInstallments() {
@@ -197,11 +274,18 @@ function renderInstallments() {
   }).join('');
 }
 
-window.removeInst = function(idx) {
+window.removeInst = async function(idx) {
   currentInstallments.splice(idx, 1);
   renderInstallments();
   updatePreview();
-  updateMemoSummary();
+
+  var memoNo = $('f_memoNo').value.trim().toUpperCase();
+  if (memoNo && editingId) {
+    try {
+      await syncMemoPayments(memoNo, currentInstallments, editingId);
+      await doFetchOrders();
+    } catch(e) { console.error('Memo sync error', e); }
+  }
 };
 
 /* ============ SAVE ============ */
@@ -283,6 +367,13 @@ $('saveBtn').addEventListener('click', async function() {
       var existing = ORDERS.find(function(r) { return r._id === editingId; });
       data[DK.sr] = existing[DK.sr];
       await window.updateOrder(editingId, data);
+
+      // Sync memo payments to sibling orders
+      var memoNo = data[DK.memoNo];
+      if (memoNo) {
+        await syncMemoPayments(memoNo, currentInstallments, editingId);
+      }
+
       showToast('Order #' + data[DK.sr] + ' updated successfully', 'success');
     } else {
       var nextSr = ORDERS.length > 0 ? Math.max.apply(null, ORDERS.map(function(r) { return parseInt(r[DK.sr]) || 0; })) + 1 : 1;
@@ -300,7 +391,7 @@ $('saveBtn').addEventListener('click', async function() {
   }
 });
 
-/* ============ DELETE ============ */
+/* ============ DELETE + RENUMBER ============ */
 var deleteTimer = null;
 var deleteProgress = 0;
 
