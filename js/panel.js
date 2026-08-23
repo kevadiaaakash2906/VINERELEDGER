@@ -296,7 +296,7 @@ $('saveBtn').addEventListener('click', async function() {
   }
 });
 
-/* ============ DELETE ============ */
+/* ============ DELETE + RENUMBER ============ */
 var deleteTimer = null;
 var deleteProgress = 0;
 
@@ -330,6 +330,22 @@ function cancelDeleteTimer() {
   btn.style.setProperty('--delete-progress', '0%');
 }
 
+async function renumberOrdersAfterDelete(deletedSr) {
+  var toUpdate = ORDERS.filter(function(r) {
+    return parseInt(r[DK.sr]) > parseInt(deletedSr);
+  }).sort(function(a, b) {
+    return parseInt(a[DK.sr]) - parseInt(b[DK.sr]);
+  });
+  for (var i = 0; i < toUpdate.length; i++) {
+    var r = toUpdate[i];
+    var newSr = (parseInt(r[DK.sr]) - 1).toString();
+    var data = {};
+    for (var k in r) data[k] = r[k];
+    data[DK.sr] = newSr;
+    try { await window.updateOrder(r._id, data); } catch(e) { console.error('Renumber failed for', r._id, e); }
+  }
+}
+
 async function doDeleteOrder() {
   if (!editingId) return;
   var order = ORDERS.find(function(r) { return r._id === editingId; });
@@ -337,6 +353,7 @@ async function doDeleteOrder() {
 
   try {
     await window.deleteOrder(editingId, srNo);
+    if (srNo) await renumberOrdersAfterDelete(srNo);
     showToast('Order deleted', 'success');
     closePanel();
     await doFetchOrders();
