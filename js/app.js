@@ -169,13 +169,15 @@ var SHEET_KEYS = {
 var ORDERS = [];
 var TRADING = [];
 var currentSearchQuery = '';
-var GOLD_RATE = 16000;
-window.GOLD_RATE = GOLD_RATE;
+
 var currentView = 'orders';
 var sortCol = 'sr';
 var sortDesc = false;
 var currentPage = 1;
 var PAGE_SIZE = 50;
+
+var GOLD_RATE = 16000;
+window.GOLD_RATE = GOLD_RATE;
 
 /* ============ INIT ============ */
 async function initApp() {
@@ -419,9 +421,50 @@ $('goldRateInput').addEventListener('input', function() {
     GOLD_RATE = val;
     window.GOLD_RATE = val;
     renderAll();
-    showToast('Gold rate updated to ₹' + val.toLocaleString('en-IN'), 'info', 1500);
   }
 });
+
+$('goldRateInput').addEventListener('change', async function() {
+  var val = parseFloat(this.value);
+  if (!isNaN(val) && val > 0) {
+    GOLD_RATE = val;
+    window.GOLD_RATE = val;
+    await batchUpdateGoldRate(val);
+  }
+});
+
+async function batchUpdateGoldRate(newRate) {
+  var unsold = ORDERS.filter(function(r) {
+    return (r[DK.paymentStatus] || 'Not Sold').trim() === 'Not Sold';
+  });
+  if (!unsold.length) {
+    showToast('Gold rate set to ₹' + newRate.toLocaleString('en-IN'), 'info', 1500);
+    return;
+  }
+  showToast('Syncing ' + unsold.length + ' unsold orders to new gold rate…', 'info', 3000);
+  for (var i = 0; i < unsold.length; i++) {
+    var r = unsold[i];
+    var net = parseFloat(r[DK.netWt]) || 0;
+    var mult = parseFloat(r[DK.multiplier]) || 0.595;
+    var pgWt = net * mult;
+    var goldAmt = pgWt * newRate;
+    var labor = parseFloat(r[DK.laborAmt]) || 0;
+    var diam = parseFloat(r[DK.diamAmount]) || 0;
+    var subTotal = goldAmt + labor + diam;
+    var usd = subTotal / 94;
+    var data = {};
+    for (var k in r) data[k] = r[k];
+    data[DK.pgWt] = pgWt.toFixed(3);
+    data[DK.goldAmt] = Math.round(goldAmt).toString();
+    data[DK.subTotal] = Math.round(subTotal).toString();
+    data[DK.usd] = usd.toFixed(2);
+    data['Gold Rate'] = newRate.toString();
+    try { await window.updateOrder(r._id, data); } catch(e) { console.error('Gold sync failed for', r._id, e); }
+  }
+  await doFetchOrders();
+  renderAll();
+  showToast('Gold rate ₹' + newRate.toLocaleString('en-IN') + ' synced to ' + unsold.length + ' orders', 'success', 2500);
+}
 
 $('clearFiltersBtn').addEventListener('click', function() {
   $('filterCustomer').value = '';
@@ -430,15 +473,6 @@ $('clearFiltersBtn').addEventListener('click', function() {
   $('filterSaleStatus').value = '';
   $('filterSoldTo').value = '';
   $('filterMemoNo').value = '';
-  currentPage = 1;
-  renderAll();
-});
-
-$('clearFiltersBtn').addEventListener('click', function() {
-  $('filterCustomer').value = '';
-  $('filterDateFrom').value = '';
-  $('filterDateTo').value = '';
-  $('filterSaleStatus').value = '';
   currentPage = 1;
   renderAll();
 });
@@ -533,6 +567,7 @@ function getFilteredOrders() {
   if (from) rows = rows.filter(function(r) { return r[DK.date] >= from; });
   if (to) rows = rows.filter(function(r) { return r[DK.date] <= to; });
   if (status) rows = rows.filter(function(r) { return (r[DK.paymentStatus] || 'Not Sold') === status; });
+
   var soldToFilter = $('filterSoldTo').value.trim().toLowerCase();
   var memoNoFilter = $('filterMemoNo').value.trim().toLowerCase();
   if (soldToFilter) rows = rows.filter(function(r) { return String(r[DK.soldTo] || '').toLowerCase().includes(soldToFilter); });
@@ -570,3 +605,4 @@ window.doFetchTrading = doFetchTrading;
 window.equalizeColumnWidths = equalizeColumnWidths;
 window.populateFilters = populateFilters;
 window.GOLD_RATE = GOLD_RATE;
+window.batchUpdateGoldRate = batchUpdateGoldRate;
