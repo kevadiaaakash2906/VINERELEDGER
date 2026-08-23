@@ -39,6 +39,7 @@ window.openEditTrade = function(id) {
   $('t_dateSold').value = trade[SHEET_KEYS.dateSold] || '';
   $('t_soldTo').value = trade[SHEET_KEYS.soldTo] || '';
   $('t_notes').value = trade[SHEET_KEYS.notes] || '';
+   $('t_memoNo').value = trade[SHEET_KEYS.memoNo] || '';
 
   try { currentTradeInstallments = JSON.parse(trade[SHEET_KEYS.paymentLog] || '[]'); } catch(e) { currentTradeInstallments = []; }
   renderTradeInstallments();
@@ -52,7 +53,7 @@ window.openEditTrade = function(id) {
 };
 
 function resetTradePanel() {
-  ['t_item','t_vendor','t_date','t_purchasePrice','t_salePrice','t_dateSold','t_soldTo','t_notes'].forEach(function(id) { $(id).value = ''; });
+  ['t_item','t_vendor','t_date','t_purchasePrice','t_salePrice','t_dateSold','t_soldTo','t_notes','t_memoNo'].forEach(function(id) { $(id).value = ''; });
   currentTradeInstallments = [];
   renderTradeInstallments();
   updateTradePreview();
@@ -184,6 +185,7 @@ $('saveTradeBtn').addEventListener('click', async function() {
   data[SHEET_KEYS.paymentStatus] = status;
   data[SHEET_KEYS.paymentLog] = JSON.stringify(currentTradeInstallments);
   data[SHEET_KEYS.notes] = $('t_notes').value.trim();
+   data[SHEET_KEYS.memoNo] = $('t_memoNo').value.trim().toUpperCase();
 
   try {
     if (editingTradeId) {
