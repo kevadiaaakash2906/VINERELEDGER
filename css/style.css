@@ -1859,3 +1859,53 @@ body.customer-role .trade-card:hover {
   box-shadow: var(--shadow-0);
   transform: none;
 }
+/* ============================================
+   GOLD RATE & FILTER BAR EXTRAS
+   ============================================ */
+#goldRateInput {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--md-primary);
+}
+.filter-bar .field {
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+.filter-bar .field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--md-on-surface-variant);
+}
+
+/* Pay result type badge */
+.pay-result-type {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--md-on-surface-variant);
+  background: var(--md-surface-2);
+  padding: 2px 6px;
+  border-radius: 100px;
+}
+
+/* Memo summary in panel */
+#memoSummary {
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--md-surface-variant);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  line-height: 1.5;
+}
+#memoSummary .computed-row {
+  padding: 4px 0;
+}
+#memoSummary .computed-row:last-child {
+  border-bottom: none;
+}
