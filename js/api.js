@@ -6,7 +6,7 @@
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyQv8kXc3urzvIIsrBLdUARIvT_zEzB0PYfkhNdy3jxIh348pABC8gCYcCJNpEIpMkl/exec';
 // -------------------------------------
 
-  // ---------- JSONP helper ----------
+  // ---------- JSONP helper ----------(₹/g)
   // Loads data via a <script> tag instead of fetch(). Script tags are not
   // subject to CORS, which sidesteps Apps Script's unreliable CORS headers
   // that were blocking fetch() from this GitHub Pages domain.
