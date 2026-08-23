@@ -54,11 +54,17 @@
 
   <main>
     <div id="ordersView">
-      <div class="filter-bar compact">
+            <div class="filter-bar compact">
+        <div class="field" style="margin:0;flex:0 0 auto;">
+          <label style="font-size:11px;margin-bottom:2px;">Gold Rate (₹/10g)</label>
+          <input type="number" id="goldRateInput" value="16000" step="100" style="width:100px;padding:6px 10px;font-size:14px;">
+        </div>
         <select id="filterCustomer"><option value="">All customers</option></select>
         <input type="date" id="filterDateFrom" placeholder="From">
         <input type="date" id="filterDateTo" placeholder="To">
         <select id="filterSaleStatus"><option value="">All status</option><option value="Not Sold">Not sold</option><option value="Unpaid">Unpaid</option><option value="Partial">Partial</option><option value="Paid">Paid</option></select>
+        <input type="text" id="filterSoldTo" placeholder="Sold to…" style="width:140px;">
+        <input type="text" id="filterMemoNo" placeholder="Memo no…" style="width:120px;">
         <button class="btn secondary small" id="clearFiltersBtn">Clear</button>
         <span class="rate-note" id="rateNote"></span>
       </div>
@@ -221,6 +227,7 @@
       <div class="computed-row"><span class="label">Balance Due</span><span class="value" id="t_prev_balanceDue">—</span></div>
       <div class="computed-row"><span class="label">Payment Status</span><span class="value" id="t_prev_paymentStatus">—</span></div>
     </div>
+        <div class="field"><label>Memo No.</label><input id="t_memoNo" placeholder="e.g. MEMO-014"></div>
     <div class="field"><label>Notes</label><input id="t_notes" placeholder="Any notes…"></div>
     <div id="tradeSaveMsg"></div>
   </div>
