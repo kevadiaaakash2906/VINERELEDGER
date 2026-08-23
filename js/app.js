@@ -190,16 +190,27 @@ async function initApp() {
 }
 
 async function loadGoldRate() {
+  var saved = localStorage.getItem('vinere_gold_rate');
+  if (saved) {
+    var val = parseFloat(saved);
+    if (!isNaN(val) && val > 0) {
+      GOLD_RATE = val;
+      window.GOLD_RATE = val;
+      var input = $('goldRateInput');
+      if (input) input.value = val;
+    }
+  }
   try {
     var settings = await window.fetchSettings();
-    if (settings && settings.rate) {
+    if (settings && settings.rate && settings.rate !== GOLD_RATE) {
       GOLD_RATE = settings.rate;
       window.GOLD_RATE = settings.rate;
+      localStorage.setItem('vinere_gold_rate', settings.rate);
       var input = $('goldRateInput');
       if (input) input.value = settings.rate;
     }
   } catch (err) {
-    console.log('No saved gold rate found, using default');
+    console.log('Firestore settings fetch failed, using localStorage/default');
   }
 }
 
@@ -445,6 +456,7 @@ $('goldRateInput').addEventListener('change', async function() {
   if (!isNaN(val) && val > 0) {
     GOLD_RATE = val;
     window.GOLD_RATE = val;
+    localStorage.setItem('vinere_gold_rate', val);
     try { await window.saveSettings(val); } catch(e) { console.error('Failed to save gold rate setting', e); }
     await batchUpdateGoldRate(val);
   }
