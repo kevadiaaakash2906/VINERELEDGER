@@ -43,13 +43,42 @@ function renderTable() {
       '<td class="num">' + (r[DK.netWt] || '') + '</td>' +
       '<td class="num">' + (r[DK.inCt] || '') + '</td>' +
       '<td class="num">' + (function() {
-      var gold = parseFloat(r[DK.goldAmt]) || 0;
-      var labor = parseFloat(r[DK.laborAmt]) || 0;
-      var diam = parseFloat(r[DK.diamAmount]) || 0;
-      var sub = gold + labor + diam;
+      var status = (r[DK.paymentStatus] || 'Not Sold').trim();
+      var isUnsold = status === 'Not Sold';
+      var sub;
+      if (isUnsold) {
+        var net = parseFloat(r[DK.netWt]) || 0;
+        var mult = parseFloat(r[DK.multiplier]) || 0.595;
+        var pgWt = net * mult;
+        var goldRate = window.GOLD_RATE || 16000;
+        var gold = pgWt * goldRate;
+        var labor = parseFloat(r[DK.laborAmt]) || 0;
+        var diam = parseFloat(r[DK.diamAmount]) || 0;
+        sub = gold + labor + diam;
+      } else {
+        var gold = parseFloat(r[DK.goldAmt]) || 0;
+        var labor = parseFloat(r[DK.laborAmt]) || 0;
+        var diam = parseFloat(r[DK.diamAmount]) || 0;
+        sub = gold + labor + diam;
+      }
       return sub ? '₹' + Math.round(sub).toLocaleString('en-IN') : '';
     })() + '</td>' +
-      '<td class="num">' + (r[DK.usd] ? '$' + parseFloat(r[DK.usd]).toFixed(2) : '') + '</td>' +
+      '<td class="num">' + (function() {
+      var status = (r[DK.paymentStatus] || 'Not Sold').trim();
+      if (status === 'Not Sold') {
+        var net = parseFloat(r[DK.netWt]) || 0;
+        var mult = parseFloat(r[DK.multiplier]) || 0.595;
+        var pgWt = net * mult;
+        var goldRate = window.GOLD_RATE || 16000;
+        var gold = pgWt * goldRate;
+        var labor = parseFloat(r[DK.laborAmt]) || 0;
+        var diam = parseFloat(r[DK.diamAmount]) || 0;
+        var sub = gold + labor + diam;
+        var usd = sub / 94;
+        return usd ? '$' + usd.toFixed(2) : '';
+      }
+      return r[DK.usd] ? '$' + parseFloat(r[DK.usd]).toFixed(2) : '';
+    })() + '</td>' +
       '<td>' + highlightText(r[DK.memoNo] || '', q) + '</td>' +
       '<td>' + highlightText(r[DK.soldTo] || '', q) + '</td>' +
       '<td class="num">' + (r[DK.salePrice] ? '$' + fmtMoney(r[DK.salePrice]) : '') + '</td>' +
@@ -101,19 +130,59 @@ function renderCards(rows) {
     }
     if (ROLE !== 'seller') {
       summaryRows += '<div class="card-sum-row"><span>Sub Total</span><span>' + (function() {
-        var gold = parseFloat(r[DK.goldAmt]) || 0;
-        var labor = parseFloat(r[DK.laborAmt]) || 0;
-        var diam = parseFloat(r[DK.diamAmount]) || 0;
-        var sub = gold + labor + diam;
+        var status = (r[DK.paymentStatus] || 'Not Sold').trim();
+        var sub;
+        if (status === 'Not Sold') {
+          var net = parseFloat(r[DK.netWt]) || 0;
+          var mult = parseFloat(r[DK.multiplier]) || 0.595;
+          var pgWt = net * mult;
+          var goldRate = window.GOLD_RATE || 16000;
+          var gold = pgWt * goldRate;
+          var labor = parseFloat(r[DK.laborAmt]) || 0;
+          var diam = parseFloat(r[DK.diamAmount]) || 0;
+          sub = gold + labor + diam;
+        } else {
+          var gold = parseFloat(r[DK.goldAmt]) || 0;
+          var labor = parseFloat(r[DK.laborAmt]) || 0;
+          var diam = parseFloat(r[DK.diamAmount]) || 0;
+          sub = gold + labor + diam;
+        }
         return sub ? '₹' + Math.round(sub).toLocaleString('en-IN') : '—';
       })() + '</span></div>';
     }
-    summaryRows += '<div class="card-sum-row"><span>USD</span><span>' + usd + '</span></div>';
+    var usdVal;
+    if ((r[DK.paymentStatus] || 'Not Sold').trim() === 'Not Sold') {
+      var net = parseFloat(r[DK.netWt]) || 0;
+      var mult = parseFloat(r[DK.multiplier]) || 0.595;
+      var pgWt = net * mult;
+      var goldRate = window.GOLD_RATE || 16000;
+      var gold = pgWt * goldRate;
+      var labor = parseFloat(r[DK.laborAmt]) || 0;
+      var diam = parseFloat(r[DK.diamAmount]) || 0;
+      var sub = gold + labor + diam;
+      usdVal = sub ? '$' + (sub / 94).toFixed(2) : '—';
+    } else {
+      usdVal = r[DK.usd] ? '$' + parseFloat(r[DK.usd]).toFixed(2) : '—';
+    }
+    summaryRows += '<div class="card-sum-row"><span>USD</span><span>' + usdVal + '</span></div>';
 
     // Show P/L in collapsed card for all mobile users
     var salePrice = parseFloat(r[DK.salePrice]) || 0;
-    var subTotal = parseFloat(r[DK.subTotal]) || 0;
-    var pl = salePrice && subTotal ? salePrice - (subTotal / 94) : 0;
+    var status = (r[DK.paymentStatus] || 'Not Sold').trim();
+    var subTotalVal;
+    if (status === 'Not Sold') {
+      var net = parseFloat(r[DK.netWt]) || 0;
+      var mult = parseFloat(r[DK.multiplier]) || 0.595;
+      var pgWt = net * mult;
+      var goldRate = window.GOLD_RATE || 16000;
+      var gold = pgWt * goldRate;
+      var labor = parseFloat(r[DK.laborAmt]) || 0;
+      var diam = parseFloat(r[DK.diamAmount]) || 0;
+      subTotalVal = gold + labor + diam;
+    } else {
+      subTotalVal = parseFloat(r[DK.subTotal]) || 0;
+    }
+    var pl = salePrice && subTotalVal ? salePrice - (subTotalVal / 94) : 0;
     if (salePrice) {
       summaryRows += '<div class="card-sum-row"><span>P/L</span><span style="color:' + (pl >= 0 ? 'var(--success)' : 'var(--error)') + '">' + (pl >= 0 ? '+' : '-') + '$' + fmtMoney(Math.abs(pl)) + '</span></div>';
     }
