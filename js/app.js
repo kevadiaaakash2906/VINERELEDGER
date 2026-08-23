@@ -161,14 +161,16 @@ var SHEET_KEYS = {
   sr: 'Sr. No.', date: 'Date', item: 'Item', vendor: 'Vendor',
   purchasePrice: 'Purchase Price', salePrice: 'Sale Price', dateSold: 'Date Sold',
   soldTo: 'Sold To', amountPaid: 'Amount Paid', balanceDue: 'Balance Due',
-  paymentStatus: 'Payment Status', paymentLog: 'Payment Log', profit: 'Profit / Loss', notes: 'Notes'
+  paymentStatus: 'Payment Status', paymentLog: 'Payment Log', profit: 'Profit / Loss', notes: 'Notes',
+  memoNo: 'Memo No.'
 };
 
 /* ============ GLOBAL STATE ============ */
 var ORDERS = [];
 var TRADING = [];
 var currentSearchQuery = '';
-
+var GOLD_RATE = 16000;
+window.GOLD_RATE = GOLD_RATE;
 var currentView = 'orders';
 var sortCol = 'sr';
 var sortDesc = false;
@@ -410,6 +412,28 @@ function populateFilters() {
   sel.value = current;
 }
 
+/* ============ GOLD RATE ============ */
+$('goldRateInput').addEventListener('input', function() {
+  var val = parseFloat(this.value);
+  if (!isNaN(val) && val > 0) {
+    GOLD_RATE = val;
+    window.GOLD_RATE = val;
+    renderAll();
+    showToast('Gold rate updated to ₹' + val.toLocaleString('en-IN'), 'info', 1500);
+  }
+});
+
+$('clearFiltersBtn').addEventListener('click', function() {
+  $('filterCustomer').value = '';
+  $('filterDateFrom').value = '';
+  $('filterDateTo').value = '';
+  $('filterSaleStatus').value = '';
+  $('filterSoldTo').value = '';
+  $('filterMemoNo').value = '';
+  currentPage = 1;
+  renderAll();
+});
+
 $('clearFiltersBtn').addEventListener('click', function() {
   $('filterCustomer').value = '';
   $('filterDateFrom').value = '';
@@ -509,6 +533,10 @@ function getFilteredOrders() {
   if (from) rows = rows.filter(function(r) { return r[DK.date] >= from; });
   if (to) rows = rows.filter(function(r) { return r[DK.date] <= to; });
   if (status) rows = rows.filter(function(r) { return (r[DK.paymentStatus] || 'Not Sold') === status; });
+  var soldToFilter = $('filterSoldTo').value.trim().toLowerCase();
+  var memoNoFilter = $('filterMemoNo').value.trim().toLowerCase();
+  if (soldToFilter) rows = rows.filter(function(r) { return String(r[DK.soldTo] || '').toLowerCase().includes(soldToFilter); });
+  if (memoNoFilter) rows = rows.filter(function(r) { return String(r[DK.memoNo] || '').toLowerCase().includes(memoNoFilter); });
 
   return rows;
 }
@@ -541,3 +569,4 @@ window.doFetchOrders = doFetchOrders;
 window.doFetchTrading = doFetchTrading;
 window.equalizeColumnWidths = equalizeColumnWidths;
 window.populateFilters = populateFilters;
+window.GOLD_RATE = GOLD_RATE;
