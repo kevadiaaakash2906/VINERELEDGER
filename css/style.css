@@ -1909,3 +1909,79 @@ body.customer-role .trade-card:hover {
 #memoSummary .computed-row:last-child {
   border-bottom: none;
 }
+/* ============================================
+   UNIFIED VIEW (Orders + Trading)
+   ============================================ */
+
+.unified-banner {
+  display: none;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid var(--md-outline-variant);
+}
+
+.unified-banner strong {
+  color: var(--md-on-primary-container);
+  font-weight: 700;
+}
+
+/* Table row color coding */
+.unified-row-order {
+  border-left: 3px solid var(--md-primary) !important;
+}
+
+.unified-row-trade {
+  border-left: 3px solid var(--md-success) !important;
+}
+
+.unified-row-order td:first-child,
+.unified-row-trade td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--md-surface);
+  z-index: 2;
+}
+
+#ordersTable .unified-row-order:hover td,
+#ordersTable .unified-row-trade:hover td {
+  background: rgba(26,115,232,0.03);
+}
+
+/* Type badges */
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.order-badge {
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+}
+
+.trade-badge {
+  background: var(--md-success-container);
+  color: #1E8E3E;
+}
+
+/* Mobile cards */
+.unified-card-order {
+  border-left: 3px solid var(--md-primary) !important;
+}
+
+.unified-card-trade {
+  border-left: 3px solid var(--md-success) !important;
+}
