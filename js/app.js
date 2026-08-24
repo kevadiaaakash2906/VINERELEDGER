@@ -190,6 +190,24 @@ async function initApp() {
 }
 
 async function loadGoldRate() {
+  // 1. Derive gold rate from fetched ORDERS (cross-device, no extra permissions needed)
+  var unsold = ORDERS.filter(function(r) {
+    return (r[DK.paymentStatus] || 'Not Sold').trim() === 'Not Sold';
+  });
+  var withRate = unsold.find(function(r) { return r['Gold Rate']; });
+  if (withRate) {
+    var rate = parseFloat(withRate['Gold Rate']);
+    if (!isNaN(rate) && rate > 0) {
+      GOLD_RATE = rate;
+      window.GOLD_RATE = rate;
+      localStorage.setItem('vinere_gold_rate', rate);
+      var input = $('goldRateInput');
+      if (input) input.value = rate;
+      return;
+    }
+  }
+
+  // 2. Fallback to localStorage (same device, recent session)
   var saved = localStorage.getItem('vinere_gold_rate');
   if (saved) {
     var val = parseFloat(saved);
@@ -198,20 +216,15 @@ async function loadGoldRate() {
       window.GOLD_RATE = val;
       var input = $('goldRateInput');
       if (input) input.value = val;
+      return;
     }
   }
-  try {
-    var settings = await window.fetchSettings();
-    if (settings && settings.rate && settings.rate !== GOLD_RATE) {
-      GOLD_RATE = settings.rate;
-      window.GOLD_RATE = settings.rate;
-      localStorage.setItem('vinere_gold_rate', settings.rate);
-      var input = $('goldRateInput');
-      if (input) input.value = settings.rate;
-    }
-  } catch (err) {
-    console.log('Firestore settings fetch failed, using localStorage/default');
-  }
+
+  // 3. Default
+  GOLD_RATE = 16000;
+  window.GOLD_RATE = 16000;
+  var input = $('goldRateInput');
+  if (input) input.value = 16000;
 }
 
 /* ============ FETCH ORDERS ============ */
