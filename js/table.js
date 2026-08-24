@@ -9,7 +9,11 @@ function renderTable() {
     '<th class="num">Gross Wt</th><th class="num">Net Wt</th><th class="num">Carat</th>' +
     '<th class="num">Sub Total</th><th class="num">$</th><th>Memo No.</th><th>Sold To</th>' +
     '<th class="num">Sale Price</th><th>Status</th>';
-
+  // Restore 13-column colgroup
+  var colgroup = $('ordersTable').querySelector('colgroup');
+  if (colgroup) {
+    colgroup.innerHTML = '<col style="width:5%"><col style="width:7%"><col style="width:10%"><col style="width:8%"><col style="width:6%"><col style="width:6%"><col style="width:6%"><col style="width:10%"><col style="width:6%"><col style="width:7%"><col style="width:10%"><col style="width:8%"><col style="width:11%">';
+  }
   var tbody = $('tbody');
   var filtered = getFilteredOrders();
 
@@ -359,7 +363,11 @@ function renderUnifiedTable() {
   $('ordersTable').querySelector('thead tr').innerHTML =
     '<th class="num">Sr.</th><th>Type</th><th>Date</th><th>Buyer</th><th>Item</th>' +
     '<th class="num">Sale Price</th><th>Status</th><th class="num">P / L</th>';
-
+  // Fix colgroup for 8 unified columns
+  var colgroup = $('ordersTable').querySelector('colgroup');
+  if (colgroup) {
+    colgroup.innerHTML = '<col style="width:6%"><col style="width:8%"><col style="width:10%"><col style="width:20%"><col style="width:24%"><col style="width:10%"><col style="width:10%"><col style="width:12%">';
+  }
   if (!pageRows.length) {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-dim)">No orders or trades match the current filters</td></tr>';
     return;
