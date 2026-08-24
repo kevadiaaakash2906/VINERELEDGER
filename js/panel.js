@@ -21,6 +21,24 @@ function getMemoTrades(memoNo) {
   });
 }
 
+function getMemoBuyer(memoNo) {
+  if (!memoNo) return '';
+  var orders = getMemoOrders(memoNo);
+  var trades = getMemoTrades(memoNo);
+  var buyers = [];
+  orders.forEach(function(o) { if (o[DK.soldTo]) buyers.push(o[DK.soldTo]); });
+  trades.forEach(function(t) { if (t[SHEET_KEYS.soldTo]) buyers.push(t[SHEET_KEYS.soldTo]); });
+  if (!buyers.length) return '';
+  // Return most common buyer name
+  var counts = {};
+  var max = 0, top = buyers[0];
+  buyers.forEach(function(b) {
+    counts[b] = (counts[b] || 0) + 1;
+    if (counts[b] > max) { max = counts[b]; top = b; }
+  });
+  return top;
+}
+
 function getAggregatedPaymentLog(memoNo) {
   var orders = getMemoOrders(memoNo);
   var trades = getMemoTrades(memoNo);
@@ -124,6 +142,14 @@ window.openOrderPanel = function(id) {
     $('f_memoNo').value = order[DK.memoNo] || '';
     $('f_soldTo').value = order[DK.soldTo] || '';
     $('f_salePrice').value = order[DK.salePrice] || '';
+    // Auto-fill buyer from memo siblings if current order has no buyer
+    if (!order[DK.soldTo]) {
+      var memoNo = order[DK.memoNo];
+      if (memoNo) {
+        var buyer = getMemoBuyer(memoNo);
+        if (buyer) $('f_soldTo').value = buyer;
+      }
+    }
     $('f_dateSold').value = order[DK.dateSold] || '';
 
     // Load aggregated payment log for memo, or own log if no memo
@@ -179,6 +205,11 @@ $('f_memoNo').addEventListener('input', function() {
   if (memoNo && !editingId && !currentInstallments.length) {
     currentInstallments = getAggregatedPaymentLog(memoNo);
     renderInstallments();
+  }
+  // Auto-fill buyer from existing memo orders
+  if (memoNo && !$('f_soldTo').value.trim()) {
+    var buyer = getMemoBuyer(memoNo);
+    if (buyer) $('f_soldTo').value = buyer;
   }
   updatePreview();
   updateMemoSummary();
