@@ -263,6 +263,8 @@ async function doFetchTrading() {
 function renderAll() {
   var banner = $('unifiedBanner');
   if (banner) banner.style.display = 'none';
+  var summary = $('unifiedSummary');
+  if (summary) summary.style.display = 'none';
 
   if (isUnifiedMode()) {
     renderUnifiedView();
@@ -286,103 +288,7 @@ function renderAll() {
   equalizeColumnWidths();
   updateSearchUI();
 }
-function isUnifiedMode() {
-  var memoNo = $('filterMemoNo').value.trim();
-  var soldTo = $('filterSoldTo').value.trim();
-  return !!(memoNo || soldTo);
-}
 
-function getUnifiedResults() {
-  var memoNo = $('filterMemoNo').value.trim().toLowerCase();
-  var soldTo = $('filterSoldTo').value.trim().toLowerCase();
-  var q = currentSearchQuery;
-  var from = $('filterDateFrom').value;
-  var to = $('filterDateTo').value;
-  var status = $('filterSaleStatus').value;
-  var customer = $('filterCustomer').value;
-
-  var orderRows = [...ORDERS].filter(function(r) {
-    if (q && !Object.values(r).some(function(v) { return String(v).toLowerCase().includes(q); })) return false;
-    if (customer && r[DK.customer] !== customer) return false;
-    if (memoNo && !String(r[DK.memoNo] || '').toLowerCase().includes(memoNo)) return false;
-    if (soldTo && !String(r[DK.soldTo] || '').toLowerCase().includes(soldTo)) return false;
-    if (from && r[DK.date] < from) return false;
-    if (to && r[DK.date] > to) return false;
-    if (status && (r[DK.paymentStatus] || 'Not Sold') !== status) return false;
-    return true;
-  });
-  orderRows.forEach(function(r) { r._type = 'order'; r._sortSr = parseInt(r[DK.sr]) || 0; r._sortMemo = String(r[DK.memoNo] || '').toLowerCase(); });
-
-  var tradeRows = [...TRADING].filter(function(r) {
-    if (q && !Object.values(r).some(function(v) { return String(v).toLowerCase().includes(q); })) return false;
-    if (memoNo && !String(r[SHEET_KEYS.memoNo] || '').toLowerCase().includes(memoNo)) return false;
-    if (soldTo && !String(r[SHEET_KEYS.soldTo] || '').toLowerCase().includes(soldTo)) return false;
-    if (from && r[SHEET_KEYS.date] < from) return false;
-    if (to && r[SHEET_KEYS.date] > to) return false;
-    if (status && (r[SHEET_KEYS.paymentStatus] || 'Not Sold') !== status) return false;
-    return true;
-  });
-  tradeRows.forEach(function(r) { r._type = 'trade'; r._sortSr = parseInt(r[SHEET_KEYS.sr]) || 0; r._sortMemo = String(r[SHEET_KEYS.memoNo] || '').toLowerCase(); });
-
-  var results = orderRows.concat(tradeRows);
-  results.sort(function(a, b) {
-    if (a._sortMemo !== b._sortMemo) return a._sortMemo.localeCompare(b._sortMemo);
-    if (a._type !== b._type) return a._type === 'order' ? -1 : 1;
-    return a._sortSr - b._sortSr;
-  });
-  return results;
-}
-
-function renderUnifiedView() {
-  $('ordersViewBtn').classList.remove('active');
-  $('tradingViewBtn').classList.remove('active');
-  $('headerStats').style.display = 'none';
-  $('kpiGrid').style.display = 'none';
-  $('tradeKpiGrid').style.display = 'none';
-
-  var banner = $('unifiedBanner');
-  if (!banner) {
-    banner = document.createElement('div');
-    banner.id = 'unifiedBanner';
-    banner.className = 'unified-banner';
-    var ref = $('kpiGrid');
-    if (ref && ref.parentNode) ref.parentNode.insertBefore(banner, ref);
-  }
-
-  var memoNo = $('filterMemoNo').value.trim();
-  var soldTo = $('filterSoldTo').value.trim();
-  var parts = [];
-  if (memoNo) parts.push('Memo <strong>' + escapeHtml(memoNo) + '</strong>');
-  if (soldTo) parts.push('Buyer <strong>' + escapeHtml(soldTo) + '</strong>');
-  banner.innerHTML = 'Combined results for ' + parts.join(' + ') +
-    '<span style="margin-left:12px;font-size:12px;opacity:0.8;">Orders are blue · Trades are green</span>' +
-    '<button class="btn text small" style="margin-left:auto;" onclick="$(\'filterMemoNo\').value=\'\';$(\'filterSoldTo\').value=\'\';window.currentPage=1;renderAll();">Show tab view</button>';
-  banner.style.display = 'flex';
-
-  renderUnifiedTable();
-  renderUnifiedCards();
-  renderUnifiedPagination();
-}
-
-function renderUnifiedPagination() {
-  var results = getUnifiedResults();
-  var totalPages = Math.ceil(results.length / PAGE_SIZE) || 1;
-  $('paginationBar').style.display = 'flex';
-  $('paginationBar').innerHTML =
-    '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window.changeUnifiedPage(1)">First</button>' +
-    '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window.changeUnifiedPage(' + (currentPage - 1) + ')">Prev</button>' +
-    '<span class="page-info">Page ' + currentPage + ' of ' + totalPages + ' · ' + results.length + ' results</span>' +
-    '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeUnifiedPage(' + (currentPage + 1) + ')">Next</button>' +
-    '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeUnifiedPage(' + totalPages + ')">Last</button>';
-  $('tradePaginationBar').style.display = 'none';
-}
-
-window.changeUnifiedPage = function(p) {
-  currentPage = p;
-  renderUnifiedTable();
-  renderUnifiedCards();
-  renderUnifiedPagination();
-};
 /* ============ COLUMN WIDTHS ============ */
 function equalizeColumnWidths() {
   var table = document.getElementById('ordersTable');
@@ -555,11 +461,7 @@ $('receivePaymentBtn').addEventListener('click', function() {
 
 /* ============ FILTERS ============ */
 function populateFilters() {
-  var customers = [...new Set(ORDERS.map(function(r) { return r[DK.customer]; }).filter(Boolean))].sort();
-  var sel = $('filterCustomer');
-  var current = sel.value;
-  sel.innerHTML = '<option value="">All customers</option>' + customers.map(function(c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
-  sel.value = current;
+  // Customer dropdown removed — no-op
 }
 
 /* ============ GOLD RATE ============ */
@@ -617,10 +519,6 @@ async function batchUpdateGoldRate(newRate) {
 }
 
 $('clearFiltersBtn').addEventListener('click', function() {
-  $('filterCustomer').value = '';
-  $('filterDateFrom').value = '';
-  $('filterDateTo').value = '';
-  $('filterSaleStatus').value = '';
   $('filterSoldTo').value = '';
   $('filterMemoNo').value = '';
   currentPage = 1;
@@ -731,16 +629,12 @@ function getFilteredTrading() {
   return rows;
 }
 
-function populateFilters() {
-  // Customer dropdown removed — no-op
+/* ============ UNIFIED VIEW ============ */
+function isUnifiedMode() {
+  var memoNo = $('filterMemoNo').value.trim();
+  var soldTo = $('filterSoldTo').value.trim();
+  return !!(memoNo || soldTo);
 }
-
-$('clearFiltersBtn').addEventListener('click', function() {
-  $('filterSoldTo').value = '';
-  $('filterMemoNo').value = '';
-  currentPage = 1;
-  renderAll();
-});
 
 function getUnifiedResults() {
   var memoNo = $('filterMemoNo').value.trim().toLowerCase();
@@ -772,35 +666,6 @@ function getUnifiedResults() {
   return results;
 }
 
-function renderAll() {
-  var banner = $('unifiedBanner');
-  if (banner) banner.style.display = 'none';
-  var summary = $('unifiedSummary');
-  if (summary) summary.style.display = 'none';
-
-  if (isUnifiedMode()) {
-    renderUnifiedView();
-    equalizeColumnWidths();
-    updateSearchUI();
-    return;
-  }
-
-  $('headerStats').style.display = 'flex';
-
-  if (currentView === 'orders') {
-    renderKPIs();
-    renderTable();
-    renderPagination();
-    populateFilters();
-  } else {
-    renderTradeKPIs();
-    renderTradeTable();
-    renderTradePagination();
-  }
-  equalizeColumnWidths();
-  updateSearchUI();
-}
-
 function renderUnifiedView() {
   $('ordersViewBtn').classList.remove('active');
   $('tradingViewBtn').classList.remove('active');
@@ -824,7 +689,7 @@ function renderUnifiedView() {
   if (soldTo) parts.push('Buyer <strong>' + escapeHtml(soldTo) + '</strong>');
   banner.innerHTML = 'Combined results for ' + parts.join(' + ') +
     '<span style="margin-left:12px;font-size:12px;opacity:0.8;">Orders are blue · Trades are green</span>' +
-    '<button class="btn text small" style="margin-left:auto;" onclick="$(\'filterMemoNo\').value=\'\';$(\'filterSoldTo\').value=\'\';window.currentPage=1;renderAll();">Show tab view</button>';
+    '<button class="btn text small" style="margin-left:auto;" onclick="$('filterMemoNo').value='';$('filterSoldTo').value='';window.currentPage=1;renderAll();">Show tab view</button>';
   banner.style.display = 'flex';
 
   // Payment summary
@@ -876,6 +741,7 @@ window.changeUnifiedPage = function(p) {
   renderUnifiedCards();
   renderUnifiedPagination();
 };
+
 /* ============ EXPOSE GLOBALLY ============ */
 window.ROLE = ROLE;
 window.DK = DK;
