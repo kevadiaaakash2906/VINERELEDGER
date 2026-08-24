@@ -261,30 +261,54 @@ function updateMemoSummary() {
   var memoTrades = TRADING.filter(function(t) { return t[SHEET_KEYS.memoNo] === memoNo; });
 
   var currentSalePrice = parseFloat($('f_salePrice').value) || 0;
-
-  // totalPaid comes from currentInstallments (already aggregated across all orders in memo)
   var totalPaid = currentInstallments.reduce(function(s, i) { return s + (parseFloat(i.amount) || 0); }, 0);
 
   var totalBill = currentSalePrice;
   var itemCount = 1;
 
+  // ── Collect Sr. Nos ──
+  var orderSrs = [];
+  if (editingId) {
+    var curr = ORDERS.find(function(o) { return o._id === editingId; });
+    if (curr && curr[DK.sr]) orderSrs.push(curr[DK.sr] + ' (this)');
+  }
   memoOrders.forEach(function(o) {
     totalBill += parseFloat(o[DK.salePrice]) || 0;
     itemCount++;
+    if (o[DK.sr]) orderSrs.push(o[DK.sr]);
   });
+  orderSrs.sort(function(a, b) { return parseInt(a) - parseInt(b); });
+
+  var tradeSrs = [];
   memoTrades.forEach(function(t) {
     totalBill += parseFloat(t[SHEET_KEYS.salePrice]) || 0;
     itemCount++;
+    if (t[SHEET_KEYS.sr]) tradeSrs.push(t[SHEET_KEYS.sr]);
   });
+  tradeSrs.sort(function(a, b) { return parseInt(a) - parseInt(b); });
 
   var balance = totalBill - totalPaid;
   var status = totalBill === 0 ? 'Not Sold' : (totalPaid >= totalBill ? 'Paid' : (totalPaid > 0 ? 'Partial' : 'Unpaid'));
+
+  // ── Build Sr. No. HTML ──
+  var srHtml = '';
+  if (orderSrs.length) {
+    srHtml += '<div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--md-outline-variant);">' +
+      '<span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--md-on-surface-variant);">Order Sr. Nos</span>' +
+      '<div style="font-size:13px;color:var(--md-on-surface);margin-top:2px;">#' + orderSrs.join(', #') + '</div></div>';
+  }
+  if (tradeSrs.length) {
+    srHtml += '<div style="margin-top:6px;">' +
+      '<span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--md-on-surface-variant);">Trade Sr. Nos</span>' +
+      '<div style="font-size:13px;color:var(--md-on-surface);margin-top:2px;">#' + tradeSrs.join(', #') + '</div></div>';
+  }
 
   el.innerHTML = '<div style="font-weight:600;margin-bottom:4px;">Memo Summary: ' + escapeHtml(memoNo) + ' (' + itemCount + ' items)</div>' +
     '<div class="computed-row"><span class="label">Total Bill</span><span class="value">$' + fmtMoney(totalBill) + '</span></div>' +
     '<div class="computed-row"><span class="label">Total Paid</span><span class="value">$' + fmtMoney(totalPaid) + '</span></div>' +
     '<div class="computed-row"><span class="label">Balance Due</span><span class="value" style="color:' + (balance > 0 ? 'var(--error)' : 'var(--success)') + '">$' + fmtMoney(balance) + '</span></div>' +
-    '<div class="computed-row"><span class="label">Memo Status</span><span class="value">' + status + '</span></div>';
+    '<div class="computed-row"><span class="label">Memo Status</span><span class="value">' + status + '</span></div>' +
+    srHtml;
   el.style.display = 'block';
 }
 
