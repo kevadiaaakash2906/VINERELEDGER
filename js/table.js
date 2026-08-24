@@ -334,6 +334,162 @@ function renderTradeCards(rows) {
     });
   });
 }
+function renderUnifiedTable() {
+  var tbody = $('tbody');
+  var results = getUnifiedResults();
+  var start = (currentPage - 1) * PAGE_SIZE;
+  var pageRows = results.slice(start, start + PAGE_SIZE);
+  var q = window.currentSearchQuery || '';
+
+  $('ordersTable').style.display = 'table';
+  $('tradingTable').style.display = 'none';
+
+  // Set unified header
+  $('ordersTable').querySelector('thead tr').innerHTML =
+    '<th class="num">Sr.</th><th>Type</th><th>Date</th><th>Party</th><th>Item</th>' +
+    '<th class="num">Sale Price</th><th>Sold To</th><th>Status</th><th class="num">P/L or Cost</th>';
+
+  if (!pageRows.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-dim)">No orders or trades match the current filters</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = pageRows.map(function(r) {
+    var isOrder = r._type === 'order';
+    var K = isOrder ? DK : SHEET_KEYS;
+    var sr = r[K.sr];
+    var status = (r[K.paymentStatus] || 'Not Sold').trim();
+    var statusClass = {
+      'Not Sold': 'status-not-sold',
+      'Unpaid': 'status-unpaid',
+      'Partial': 'status-partial',
+      'Paid': 'status-paid'
+    }[status] || 'status-not-sold';
+
+    var party = isOrder ? r[DK.customer] : r[SHEET_KEYS.vendor];
+    var item = isOrder ? r[DK.style] : r[SHEET_KEYS.item];
+    var salePrice = parseFloat(r[K.salePrice]) || 0;
+    var soldTo = r[K.soldTo] || '';
+
+    var metric = '';
+    var metricColor = 'var(--text-dim)';
+    if (isOrder) {
+      var cost = parseFloat(r[DK.usd]) || 0;
+      metric = cost ? '$' + fmtMoney(cost) : '';
+    } else {
+      var purchase = parseFloat(r[SHEET_KEYS.purchasePrice]) || 0;
+      var profit = salePrice ? salePrice - purchase : 0;
+      metric = salePrice ? (profit >= 0 ? '+' : '-') + '$' + fmtMoney(Math.abs(profit)) : '';
+      metricColor = salePrice ? (profit >= 0 ? 'var(--success)' : 'var(--error)') : 'var(--text-dim)';
+    }
+
+    var badge = isOrder
+      ? '<span class="type-badge order-badge">ORDER</span>'
+      : '<span class="type-badge trade-badge">TRADE</span>';
+    var rowClass = isOrder ? 'unified-row-order' : 'unified-row-trade';
+
+    return '<tr data-id="' + r._id + '" data-type="' + r._type + '" class="' + rowClass + '">' +
+      '<td class="num">' + sr + '</td>' +
+      '<td>' + badge + '</td>' +
+      '<td>' + fmtDate(r[K.date]) + '</td>' +
+      '<td>' + highlightText(party || '', q) + '</td>' +
+      '<td><strong>' + highlightText(item || '', q) + '</strong></td>' +
+      '<td class="num">' + (salePrice ? '$' + fmtMoney(salePrice) : '') + '</td>' +
+      '<td>' + highlightText(soldTo, q) + '</td>' +
+      '<td><span class="status-badge ' + statusClass + '">' + status + '</span></td>' +
+      '<td class="num" style="color:' + metricColor + '">' + metric + '</td>' +
+      '</tr>';
+  }).join('');
+
+  tbody.querySelectorAll('tr[data-id]').forEach(function(tr) {
+    tr.addEventListener('click', function() {
+      if (tr.dataset.type === 'order') {
+        if (window.openOrderPanel) window.openOrderPanel(tr.dataset.id);
+      } else {
+        if (window.openEditTrade) window.openEditTrade(tr.dataset.id);
+      }
+    });
+  });
+}
+
+function renderUnifiedCards() {
+  var container = $('cardList');
+  var results = getUnifiedResults();
+  var start = (currentPage - 1) * PAGE_SIZE;
+  var pageRows = results.slice(start, start + PAGE_SIZE);
+  var q = window.currentSearchQuery || '';
+
+  $('cardList').classList.add('active');
+  $('tradeCardList').classList.remove('active');
+
+  if (!pageRows.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:14px;">No results found</div>';
+    return;
+  }
+
+  container.innerHTML = pageRows.map(function(r) {
+    var isOrder = r._type === 'order';
+    var K = isOrder ? DK : SHEET_KEYS;
+    var status = (r[K.paymentStatus] || 'Not Sold').trim();
+    var statusClass = {
+      'Not Sold': 'status-not-sold',
+      'Unpaid': 'status-unpaid',
+      'Partial': 'status-partial',
+      'Paid': 'status-paid'
+    }[status] || 'status-not-sold';
+
+    var party = isOrder ? r[DK.customer] : r[SHEET_KEYS.vendor];
+    var item = isOrder ? r[DK.style] : r[SHEET_KEYS.item];
+    var salePrice = parseFloat(r[K.salePrice]) || 0;
+
+    var badge = isOrder
+      ? '<span class="type-badge order-badge">ORDER</span>'
+      : '<span class="type-badge trade-badge">TRADE</span>';
+    var cardClass = isOrder ? 'unified-card-order' : 'unified-card-trade';
+
+    var extraLabel = isOrder ? 'Net Wt' : 'P/L';
+    var extraVal = '';
+    if (isOrder) {
+      var net = parseFloat(r[DK.netWt]) || 0;
+      extraVal = net ? net + ' g' : '—';
+    } else {
+      var purchase = parseFloat(r[SHEET_KEYS.purchasePrice]) || 0;
+      var profit = salePrice ? salePrice - purchase : 0;
+      extraVal = salePrice ? (profit >= 0 ? '+' : '-') + '$' + fmtMoney(Math.abs(profit)) : '—';
+    }
+    var extraColor = isOrder ? 'var(--md-on-surface)' : (salePrice && (salePrice - purchase) >= 0 ? 'var(--success)' : 'var(--error)');
+
+    return '<div class="order-card ' + cardClass + '" data-id="' + r._id + '" data-type="' + r._type + '">' +
+      '<div class="card-header">' +
+      '<div class="card-header-left">' +
+      '<span class="card-title">' + highlightText(item || '', q) + ' ' + badge + '</span>' +
+      '<span class="card-meta">' + escapeHtml(party || '') + ' · ' + fmtDate(r[K.date]) + '</span>' +
+      '</div>' +
+      '<div class="card-header-right">' +
+      '<span class="card-sr-badge">#' + r[K.sr] + '</span>' +
+      '<span class="status-badge ' + statusClass + '">' + status + '</span>' +
+      '</div>' +
+      '</div>' +
+      '<div class="card-summary" style="grid-template-columns: repeat(3, 1fr);">' +
+      '<div class="card-sum-row"><span>Type</span><span>' + (isOrder ? 'Order' : 'Trade') + '</span></div>' +
+      '<div class="card-sum-row"><span>Sale Price</span><span>' + (salePrice ? '$' + fmtMoney(salePrice) : '—') + '</span></div>' +
+      '<div class="card-sum-row"><span>' + extraLabel + '</span><span style="color:' + extraColor + '">' + extraVal + '</span></div>' +
+      '</div>' +
+      '</div>';
+  }).join('');
+
+  container.querySelectorAll('.order-card').forEach(function(card) {
+    card.addEventListener('click', function() {
+      if (card.dataset.type === 'order') {
+        if (window.openOrderPanel) window.openOrderPanel(card.dataset.id);
+      } else {
+        if (window.openEditTrade) window.openEditTrade(card.dataset.id);
+      }
+    });
+  });
+}
 
 window.renderTable = renderTable;
 window.renderTradeTable = renderTradeTable;
+window.renderUnifiedTable = renderUnifiedTable;
+window.renderUnifiedCards = renderUnifiedCards;
