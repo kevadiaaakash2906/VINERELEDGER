@@ -712,7 +712,7 @@ function getFilteredOrders() {
     });
   }
   if (soldToFilter) rows = rows.filter(function(r) { return String(r[DK.soldTo] || '').toLowerCase().includes(soldToFilter); });
-  if (memoNoFilter) rows = rows.filter(function(r) { return String(r[DK.memoNo] || '').toLowerCase().includes(memoNoFilter); });
+  if (memoNoFilter) rows = rows.filter(function(r) { return String(r[DK.memoNo] || '').toLowerCase() === memoNoFilter; });
   return rows;
 }
 
@@ -726,7 +726,7 @@ function getFilteredTrading() {
   }
   var memoNo = $('filterMemoNo').value.trim().toLowerCase();
   var soldTo = $('filterSoldTo').value.trim().toLowerCase();
-  if (memoNo) rows = rows.filter(function(r) { return String(r[SHEET_KEYS.memoNo] || '').toLowerCase().includes(memoNo); });
+  if (memoNo) rows = rows.filter(function(r) { return String(r[SHEET_KEYS.memoNo] || '').toLowerCase() === memoNo; });
   if (soldTo) rows = rows.filter(function(r) { return String(r[SHEET_KEYS.soldTo] || '').toLowerCase().includes(soldTo); });
   return rows;
 }
