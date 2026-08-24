@@ -1985,3 +1985,59 @@ body.customer-role .trade-card:hover {
 .unified-card-trade {
   border-left: 3px solid var(--md-success) !important;
 }
+/* ============================================
+   FILTER BAR — Right-aligned pill inputs
+   ============================================ */
+
+.filter-bar .filter-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+.filter-pill {
+  padding: 8px 16px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--md-on-surface);
+  background: var(--md-surface-variant);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  outline: none;
+  width: 160px;
+  transition: background var(--duration-fast) var(--ease-standard),
+              border-color var(--duration-fast) var(--ease-standard),
+              box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.filter-pill:hover {
+  background: var(--md-surface-2);
+}
+
+.filter-pill:focus {
+  background: var(--md-surface);
+  border-color: var(--md-primary);
+  box-shadow: 0 0 0 3px rgba(26,115,232,0.12);
+}
+
+.filter-pill::placeholder {
+  color: var(--md-on-surface-variant);
+}
+
+/* Mobile: stack filters below gold rate */
+@media (max-width: 900px) {
+  .filter-bar {
+    flex-wrap: wrap;
+  }
+  .filter-bar .filter-right {
+    width: 100%;
+    margin-left: 0;
+    margin-top: var(--space-2);
+    justify-content: flex-end;
+  }
+  .filter-pill {
+    flex: 1;
+    min-width: 0;
+  }
+}
