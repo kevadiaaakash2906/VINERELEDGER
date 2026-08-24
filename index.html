@@ -205,11 +205,12 @@
       <div class="field"><label>Purchase Price ($) *</label><input id="t_purchasePrice" type="number" step="1" placeholder="0"><div class="field-error" id="err_t_purchasePrice"></div></div>
     </div>
     <div class="section-divider">Sale &amp; Payment</div>
+    <div class="field"><label>Memo No.</label><input id="t_memoNo" placeholder="e.g. MEMO-014"></div>
+    <div class="field"><label>Sold To (Buyer)</label><input id="t_soldTo" placeholder="e.g. Priya Shah"></div>
     <div class="field-row">
       <div class="field"><label>Sale Price ($)</label><input id="t_salePrice" type="number" step="1" placeholder="0"><div class="field-error" id="err_t_salePrice"></div></div>
       <div class="field"><label>Date Sold</label><input id="t_dateSold" type="date"></div>
     </div>
-    <div class="field"><label>Sold To</label><input id="t_soldTo" placeholder="e.g. Priya Shah"></div>
     <div class="field">
       <label>Installments</label>
       <div id="tradeInstallmentsList" class="installments-list"></div>
@@ -221,13 +222,12 @@
       <div class="field-error" id="err_t_installment"></div>
     </div>
     <div class="computed-preview">
-      <h4>Trading Preview</h4>
+      <h4>Payment Preview</h4>
       <div class="computed-row"><span class="label">Profit / Loss</span><span class="value" id="t_prev_profit" style="color:var(--text-dim)">—</span></div>
       <div class="computed-row"><span class="label">Amount Paid</span><span class="value" id="t_prev_amountPaid">—</span></div>
       <div class="computed-row"><span class="label">Balance Due</span><span class="value" id="t_prev_balanceDue">—</span></div>
       <div class="computed-row"><span class="label">Payment Status</span><span class="value" id="t_prev_paymentStatus">—</span></div>
     </div>
-        <div class="field"><label>Memo No.</label><input id="t_memoNo" placeholder="e.g. MEMO-014"></div>
     <div class="field"><label>Notes</label><input id="t_notes" placeholder="Any notes…"></div>
     <div id="tradeSaveMsg"></div>
   </div>
