@@ -4,16 +4,20 @@
 
 function renderTable() {
   // Restore original orders table header (unified view may have changed it)
-  $('ordersTable').querySelector('thead tr').innerHTML =
-    '<th class="num">Sr.</th><th>Customer</th><th>Style No.</th><th>Date</th>' +
-    '<th class="num">Gross Wt</th><th class="num">Net Wt</th><th class="num">Carat</th>' +
-    '<th class="num">Sub Total</th><th class="num">$</th><th>Memo No.</th><th>Sold To</th>' +
-    '<th class="num">Sale Price</th><th>Status</th>';
+  var theadTr = $('ordersTable').querySelector('thead tr');
+  if (theadTr) {
+    theadTr.innerHTML =
+      '<th class="num">Sr.</th><th>Customer</th><th>Style No.</th><th>Date</th>' +
+      '<th class="num">Gross Wt</th><th class="num">Net Wt</th><th class="num">Carat</th>' +
+      '<th class="num">Sub Total</th><th class="num">$</th><th>Memo No.</th><th>Sold To</th>' +
+      '<th class="num">Sale Price</th><th>Status</th>';
+  }
   // Restore 13-column colgroup
   var colgroup = $('ordersTable').querySelector('colgroup');
   if (colgroup) {
     colgroup.innerHTML = '<col style="width:5%"><col style="width:7%"><col style="width:10%"><col style="width:8%"><col style="width:6%"><col style="width:6%"><col style="width:6%"><col style="width:10%"><col style="width:6%"><col style="width:7%"><col style="width:10%"><col style="width:8%"><col style="width:11%">';
   }
+
   var tbody = $('tbody');
   var filtered = getFilteredOrders();
 
@@ -116,11 +120,12 @@ function renderCards(rows) {
     return;
   }
 
-  // Determine role-based view class
   var viewClass = '';
   if (ROLE === 'seller') viewClass = 'seller-view';
   else if (ROLE === 'staff') viewClass = 'staff-view';
   else if (ROLE === 'customer') viewClass = 'customer-view';
+
+  var isSeller = ROLE === 'seller';
 
   container.innerHTML = rows.map(function(r) {
     var status = (r[DK.paymentStatus] || 'Not Sold').trim();
@@ -131,19 +136,85 @@ function renderCards(rows) {
       'Paid': 'status-paid'
     }[status] || 'status-not-sold';
 
-    var subTotal = r[DK.subTotal] ? '₹' + Math.round(parseFloat(r[DK.subTotal]) || 0).toLocaleString('en-IN') : '—';
-    var usd = r[DK.usd] ? '$' + parseFloat(r[DK.usd]).toFixed(2) : '—';
+    var sr = r[DK.sr];
+    var style = r[DK.style] || '';
+    var customer = r[DK.customer] || '';
+    var date = fmtDate(r[DK.date]);
+    var inCt = r[DK.inCt] || '—';
+    var memoNo = r[DK.memoNo] || '';
+    var soldTo = r[DK.soldTo] || '';
+    var salePrice = parseFloat(r[DK.salePrice]) || 0;
 
-    // Build card-summary rows based on role
+    // USD calculation
+    var usdVal;
+    if (status === 'Not Sold') {
+      var net = parseFloat(r[DK.netWt]) || 0;
+      var mult = parseFloat(r[DK.multiplier]) || 0.595;
+      var pgWt = net * mult;
+      var goldRate = window.GOLD_RATE || 16000;
+      var gold = pgWt * goldRate;
+      var labor = parseFloat(r[DK.laborAmt]) || 0;
+      var diam = parseFloat(r[DK.diamAmount]) || 0;
+      var sub = gold + labor + diam;
+      usdVal = sub ? '$' + (sub / 94).toFixed(2) : '—';
+    } else {
+      usdVal = r[DK.usd] ? '$' + parseFloat(r[DK.usd]).toFixed(2) : '—';
+    }
+
+    // P/L calculation
+    var plVal = '—';
+    var plColor = 'var(--text-dim)';
+    if (salePrice) {
+      var cost = parseFloat(r[DK.usd]) || 0;
+      var pl = salePrice - cost;
+      plVal = (pl >= 0 ? '+' : '-') + '$' + fmtMoney(Math.abs(pl));
+      plColor = pl >= 0 ? 'var(--success)' : 'var(--error)';
+    }
+
+    if (isSeller) {
+      // ===== COMPACT SELLER VIEW =====
+      return '<div class="order-card ' + viewClass + '" data-id="' + r._id + '" style="margin-bottom:6px;">' +
+        '<div class="card-header" onclick="window.toggleCard(this)" style="padding:10px 14px;">' +
+        '<div class="card-header-left" style="gap:2px;">' +
+        '<span style="display:flex;align-items:center;gap:6px;">' +
+        '<span class="card-sr-badge" style="min-width:28px;height:24px;padding:0 8px;font-size:12px;">#' + sr + '</span>' +
+        '<span class="card-title" style="font-size:15px;">' + highlightText(style, q) + '</span>' +
+        '</span>' +
+        '<span class="card-meta" style="font-size:12px;">' + escapeHtml(customer) + ' · ' + date + '</span>' +
+        '</div>' +
+        '<div class="card-header-right" style="gap:6px;">' +
+        '<span class="status-badge ' + statusClass + '" style="font-size:11px;padding:2px 8px;">' + status + '</span>' +
+        '<span class="card-chevron" style="font-size:10px;">▼</span>' +
+        '</div>' +
+        '</div>' +
+        '<div class="card-summary" style="grid-template-columns:repeat(3,1fr);gap:4px 8px;padding:8px 14px;background:var(--md-surface-1);">' +
+        '<div class="card-sum-row" style="gap:0;"><span style="font-size:10px;">IN CT</span><span style="font-size:13px;">' + inCt + '</span></div>' +
+        '<div class="card-sum-row" style="gap:0;"><span style="font-size:10px;">USD</span><span style="font-size:13px;">' + usdVal + '</span></div>' +
+        '<div class="card-sum-row" style="gap:0;"><span style="font-size:10px;">P / L</span><span style="font-size:13px;color:' + plColor + '">' + plVal + '</span></div>' +
+        '<div class="card-sum-row" style="gap:0;"><span style="font-size:10px;">Memo</span><span style="font-size:13px;">' + (memoNo ? escapeHtml(memoNo) : '—') + '</span></div>' +
+        '<div class="card-sum-row" style="gap:0;grid-column:span 2;"><span style="font-size:10px;">Sold To</span><span style="font-size:13px;">' + (soldTo ? escapeHtml(soldTo) : '—') + '</span></div>' +
+        '</div>' +
+        '<div class="card-body">' +
+        '<div class="card-row" style="padding:6px 0;"><span class="card-label">Gross Wt</span><span class="card-value">' + (r[DK.grossWt] || '—') + 'g</span></div>' +
+        '<div class="card-row" style="padding:6px 0;"><span class="card-label">Net Wt</span><span class="card-value">' + (r[DK.netWt] || '—') + 'g</span></div>' +
+        '<div class="card-row" style="padding:6px 0;"><span class="card-label">Dia Qty</span><span class="card-value">' + (r[DK.diaQty] || '—') + '</span></div>' +
+        '<div class="card-row" style="padding:6px 0;"><span class="card-label">Colour Stone</span><span class="card-value">' + (r[DK.colourStone] || '—') + '</span></div>' +
+        '<div class="card-row" style="padding:6px 0;"><span class="card-label">Sale Price</span><span class="card-value">' + (salePrice ? '$' + fmtMoney(salePrice) : '—') + '</span></div>' +
+        '<div class="card-row" style="padding:6px 0;"><span class="card-label">Balance</span><span class="card-value">$' + (r[DK.balanceDue] || '0') + '</span></div>' +
+        '</div>' +
+        '</div>';
+    }
+
+    // ===== DEFAULT VIEW (staff / customer) =====
     var summaryRows = '';
     if (ROLE !== 'seller') {
       summaryRows += '<div class="card-sum-row"><span>Net Wt</span><span>' + (r[DK.netWt] || '—') + 'g</span></div>';
     }
     if (ROLE !== 'seller') {
       summaryRows += '<div class="card-sum-row"><span>Sub Total</span><span>' + (function() {
-        var status = (r[DK.paymentStatus] || 'Not Sold').trim();
+        var st = (r[DK.paymentStatus] || 'Not Sold').trim();
         var sub;
-        if (status === 'Not Sold') {
+        if (st === 'Not Sold') {
           var net = parseFloat(r[DK.netWt]) || 0;
           var mult = parseFloat(r[DK.multiplier]) || 0.595;
           var pgWt = net * mult;
@@ -161,7 +232,7 @@ function renderCards(rows) {
         return sub ? '₹' + Math.round(sub).toLocaleString('en-IN') : '—';
       })() + '</span></div>';
     }
-    var usdVal;
+    var usdValDefault;
     if ((r[DK.paymentStatus] || 'Not Sold').trim() === 'Not Sold') {
       var net = parseFloat(r[DK.netWt]) || 0;
       var mult = parseFloat(r[DK.multiplier]) || 0.595;
@@ -171,17 +242,16 @@ function renderCards(rows) {
       var labor = parseFloat(r[DK.laborAmt]) || 0;
       var diam = parseFloat(r[DK.diamAmount]) || 0;
       var sub = gold + labor + diam;
-      usdVal = sub ? '$' + (sub / 94).toFixed(2) : '—';
+      usdValDefault = sub ? '$' + (sub / 94).toFixed(2) : '—';
     } else {
-      usdVal = r[DK.usd] ? '$' + parseFloat(r[DK.usd]).toFixed(2) : '—';
+      usdValDefault = r[DK.usd] ? '$' + parseFloat(r[DK.usd]).toFixed(2) : '—';
     }
-    summaryRows += '<div class="card-sum-row"><span>USD</span><span>' + usdVal + '</span></div>';
+    summaryRows += '<div class="card-sum-row"><span>USD</span><span>' + usdValDefault + '</span></div>';
 
-    // Show P/L in collapsed card for all mobile users
-    var salePrice = parseFloat(r[DK.salePrice]) || 0;
-    var status = (r[DK.paymentStatus] || 'Not Sold').trim();
+    var salePriceDefault = parseFloat(r[DK.salePrice]) || 0;
+    var stDefault = (r[DK.paymentStatus] || 'Not Sold').trim();
     var subTotalVal;
-    if (status === 'Not Sold') {
+    if (stDefault === 'Not Sold') {
       var net = parseFloat(r[DK.netWt]) || 0;
       var mult = parseFloat(r[DK.multiplier]) || 0.595;
       var pgWt = net * mult;
@@ -193,12 +263,11 @@ function renderCards(rows) {
     } else {
       subTotalVal = parseFloat(r[DK.subTotal]) || 0;
     }
-    var pl = salePrice && subTotalVal ? salePrice - (subTotalVal / 94) : 0;
-    if (salePrice) {
-      summaryRows += '<div class="card-sum-row"><span>P/L</span><span style="color:' + (pl >= 0 ? 'var(--success)' : 'var(--error)') + '">' + (pl >= 0 ? '+' : '-') + '$' + fmtMoney(Math.abs(pl)) + '</span></div>';
+    var plDefault = salePriceDefault && subTotalVal ? salePriceDefault - (subTotalVal / 94) : 0;
+    if (salePriceDefault) {
+      summaryRows += '<div class="card-sum-row"><span>P/L</span><span style="color:' + (plDefault >= 0 ? 'var(--success)' : 'var(--error)') + '">' + (plDefault >= 0 ? '+' : '-') + '$' + fmtMoney(Math.abs(plDefault)) + '</span></div>';
     }
 
-    // Build card-body rows based on role
     var bodyRows = '';
     bodyRows += '<div class="card-row"><span class="card-label">Gross Wt</span><span class="card-value">' + (r[DK.grossWt] || '—') + 'g</span></div>';
     bodyRows += '<div class="card-row"><span class="card-label">Dia Qty</span><span class="card-value">' + (r[DK.diaQty] || '—') + '</span></div>';
@@ -253,7 +322,7 @@ function renderTradeTable() {
     var msg = window.currentSearchQuery 
       ? 'No trades match "' + escapeHtml(window.currentSearchQuery) + '"' 
       : 'No trades found';
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-dim)">' + msg + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-dim)">' + msg + '</td></tr>';
     return;
   }
 
@@ -269,7 +338,7 @@ function renderTradeTable() {
       'Paid': 'status-paid'
     }[status] || 'status-not-sold';
 
-        return '<tr data-id="' + r._id + '" style="cursor:pointer">' +
+    return '<tr data-id="' + r._id + '" style="cursor:pointer">' +
       '<td class="num">' + r[K.sr] + '</td>' +
       '<td>' + fmtDate(r[K.date]) + '</td>' +
       '<td><strong>' + highlightText(r[K.item] || '', q) + '</strong></td>' +
@@ -318,9 +387,8 @@ function renderTradeCards(rows) {
 
     var profitStr = sale ? (profit >= 0 ? '+' : '-') + '$' + fmtMoney(Math.abs(profit)) : '—';
     var profitColor = sale ? (profit >= 0 ? 'var(--success)' : 'var(--error)') : 'var(--text-dim)';
+    var memoNo = r[K.memoNo] || '';
 
-    // Single-row trading card — no summary, no body, no expand
-       var memoNo = r[K.memoNo] || '';
     return '<div class="order-card trade-card" data-id="' + r._id + '">' +
       '<div class="card-header">' +
       '<div class="card-header-left">' +
@@ -336,7 +404,6 @@ function renderTradeCards(rows) {
       '</div>';
   }).join('');
 
-  // Click anywhere on card to open edit panel
   container.querySelectorAll('.trade-card').forEach(function(card) {
     card.addEventListener('click', function() {
       if (ROLE === 'customer') {
@@ -362,14 +429,16 @@ function renderUnifiedTable() {
   $('ordersTable').style.display = 'table';
   $('tradingTable').style.display = 'none';
 
-  $('ordersTable').querySelector('thead tr').innerHTML =
-    '<th class="num">Sr.</th><th>Type</th><th>Date</th><th>Buyer</th><th>Item</th>' +
-    '<th class="num">Sale Price</th><th>Status</th><th class="num">P / L</th>';
   // Fix colgroup for 8 unified columns
   var colgroup = $('ordersTable').querySelector('colgroup');
   if (colgroup) {
     colgroup.innerHTML = '<col style="width:6%"><col style="width:8%"><col style="width:10%"><col style="width:20%"><col style="width:24%"><col style="width:10%"><col style="width:10%"><col style="width:12%">';
   }
+
+  $('ordersTable').querySelector('thead tr').innerHTML =
+    '<th class="num">Sr.</th><th>Type</th><th>Date</th><th>Buyer</th><th>Item</th>' +
+    '<th class="num">Sale Price</th><th>Status</th><th class="num">P / L</th>';
+
   if (!pageRows.length) {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-dim)">No orders or trades match the current filters</td></tr>';
     return;
