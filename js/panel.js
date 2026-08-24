@@ -463,15 +463,27 @@ async function renumberOrdersAfterDelete(deletedSr) {
   });
   for (var i = 0; i < toUpdate.length; i++) {
     var r = toUpdate[i];
-    var newSr = (parseInt(r[DK.sr]) - 1).toString();
+    var oldSr = r[DK.sr];
+    var newSr = (parseInt(oldSr) - 1).toString();
+    var oldId = r._id;
+    var newId = 'order_' + newSr;
 
-    // Update in-memory immediately so UI is correct even if fetch is stale
+    // Update in-memory immediately
     r[DK.sr] = newSr;
+    r._id = newId;
 
     var data = {};
     for (var k in r) data[k] = r[k];
     data[DK.sr] = newSr;
-    try { await window.updateOrder(r._id, data); } catch(e) { console.error('Renumber failed for', r._id, e); }
+
+    try {
+      // Create new doc with correct ID
+      await window.addOrder(data, newId);
+      // Delete old doc
+      await window.deleteOrder(oldId, oldSr);
+    } catch(e) {
+      console.error('Renumber failed for', oldId, '→', newId, e);
+    }
   }
 }
 
