@@ -2041,3 +2041,7 @@ body.customer-role .trade-card:hover {
     min-width: 0;
   }
 }
+#ordersTable td.num,
+#tradingTable td.num {
+  text-align: right;
+}
