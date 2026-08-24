@@ -269,12 +269,13 @@ function renderTradeTable() {
       'Paid': 'status-paid'
     }[status] || 'status-not-sold';
 
-    return '<tr data-id="' + r._id + '" style="cursor:pointer">' +
+        return '<tr data-id="' + r._id + '" style="cursor:pointer">' +
       '<td class="num">' + r[K.sr] + '</td>' +
       '<td>' + fmtDate(r[K.date]) + '</td>' +
       '<td><strong>' + highlightText(r[K.item] || '', q) + '</strong></td>' +
       '<td class="vendor-wrap">' + highlightText(r[K.vendor] || '', q) + '</td>' +
       '<td class="num">$' + fmtMoney(purchase) + '</td>' +
+      '<td>' + highlightText(r[K.memoNo] || '', q) + '</td>' +
       '<td class="num">' + (sale ? '$' + fmtMoney(sale) : '') + '</td>' +
       '<td>' + highlightText(r[K.soldTo] || '', q) + '</td>' +
       '<td><span class="status-badge ' + statusClass + '">' + status + '</span></td>' +
@@ -319,11 +320,12 @@ function renderTradeCards(rows) {
     var profitColor = sale ? (profit >= 0 ? 'var(--success)' : 'var(--error)') : 'var(--text-dim)';
 
     // Single-row trading card — no summary, no body, no expand
+       var memoNo = r[K.memoNo] || '';
     return '<div class="order-card trade-card" data-id="' + r._id + '">' +
       '<div class="card-header">' +
       '<div class="card-header-left">' +
       '<span class="card-title">' + highlightText(r[K.item] || '', q) + '</span>' +
-      '<span class="card-meta">' + (r[K.vendor] || '') + ' · ' + fmtDate(r[K.date]) + '</span>' +
+      '<span class="card-meta">' + (r[K.vendor] || '') + (memoNo ? ' · Memo ' + memoNo : '') + ' · ' + fmtDate(r[K.date]) + '</span>' +
       '</div>' +
       '<div class="card-header-right">' +
       '<span class="card-sr-badge">#' + r[K.sr] + '</span>' +
