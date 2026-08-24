@@ -464,6 +464,10 @@ async function renumberOrdersAfterDelete(deletedSr) {
   for (var i = 0; i < toUpdate.length; i++) {
     var r = toUpdate[i];
     var newSr = (parseInt(r[DK.sr]) - 1).toString();
+
+    // Update in-memory immediately so UI is correct even if fetch is stale
+    r[DK.sr] = newSr;
+
     var data = {};
     for (var k in r) data[k] = r[k];
     data[DK.sr] = newSr;
@@ -478,7 +482,14 @@ async function doDeleteOrder() {
 
   try {
     await window.deleteOrder(editingId, srNo);
-    if (srNo) await renumberOrdersAfterDelete(srNo);
+
+    // Remove deleted item from in-memory array immediately
+    ORDERS = ORDERS.filter(function(r) { return r._id !== editingId; });
+
+    if (srNo) {
+      await renumberOrdersAfterDelete(srNo);
+    }
+
     showToast('Order deleted', 'success');
     closePanel();
     await doFetchOrders();
