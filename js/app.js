@@ -626,6 +626,20 @@ function getFilteredTrading() {
       return Object.values(r).some(function(v) { return String(v).toLowerCase().includes(q); });
     });
   }
+
+  // Apply shared filter-bar fields to trading too
+  var memoNo = $('filterMemoNo').value.trim().toLowerCase();
+  var soldTo = $('filterSoldTo').value.trim().toLowerCase();
+  var from = $('filterDateFrom').value;
+  var to = $('filterDateTo').value;
+  var status = $('filterSaleStatus').value;
+
+  if (memoNo) rows = rows.filter(function(r) { return String(r[SHEET_KEYS.memoNo] || '').toLowerCase().includes(memoNo); });
+  if (soldTo) rows = rows.filter(function(r) { return String(r[SHEET_KEYS.soldTo] || '').toLowerCase().includes(soldTo); });
+  if (from) rows = rows.filter(function(r) { return r[SHEET_KEYS.date] >= from; });
+  if (to) rows = rows.filter(function(r) { return r[SHEET_KEYS.date] <= to; });
+  if (status) rows = rows.filter(function(r) { return (r[SHEET_KEYS.paymentStatus] || 'Not Sold') === status; });
+
   return rows;
 }
 
