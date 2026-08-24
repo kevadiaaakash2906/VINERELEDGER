@@ -103,7 +103,7 @@ $('addTradeInstallmentBtn').addEventListener('click', function() {
   if (!amt || amt <= 0 || !date) {
     $('err_t_installment').textContent = 'Enter valid amount and date';
     return;
-n  }
+  }
   currentTradeInstallments.push({ amount: amt, date: date });
   $('t_instAmount').value = '';
   $('t_instDate').value = '';
@@ -209,7 +209,7 @@ $('saveTradeBtn').addEventListener('click', async function() {
   }
 });
 
-/* ============ DELETE + RENUMBER ============ */
+/* ============ DELETE ============ */
 var deleteTradeTimer = null;
 var deleteTradeProgress = 0;
 
@@ -252,6 +252,10 @@ async function renumberTradesAfterDelete(deletedSr) {
   for (var i = 0; i < toUpdate.length; i++) {
     var r = toUpdate[i];
     var newSr = (parseInt(r[SHEET_KEYS.sr]) - 1).toString();
+
+    // Update in-memory immediately so UI is correct even if fetch is stale
+    r[SHEET_KEYS.sr] = newSr;
+
     var data = {};
     for (var k in r) data[k] = r[k];
     data[SHEET_KEYS.sr] = newSr;
@@ -266,7 +270,14 @@ async function doDeleteTrade() {
 
   try {
     await window.deleteTrading(editingTradeId, srNo);
-    if (srNo) await renumberTradesAfterDelete(srNo);
+
+    // Remove deleted item from in-memory array immediately
+    TRADING = TRADING.filter(function(r) { return r._id !== editingTradeId; });
+
+    if (srNo) {
+      await renumberTradesAfterDelete(srNo);
+    }
+
     showToast('Trade deleted', 'success');
     closeTradePanel();
     await doFetchTrading();
