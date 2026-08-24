@@ -2042,6 +2042,8 @@ body.customer-role .trade-card:hover {
   }
 }
 #ordersTable td.num,
-#tradingTable td.num {
+#tradingTable td.num,
+#ordersTable th.num,
+#tradingTable th.num {
   text-align: right;
 }
