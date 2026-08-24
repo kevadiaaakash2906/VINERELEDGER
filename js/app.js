@@ -39,7 +39,6 @@ window.showApp = function(role) {
   if (receivePaymentBtn) receivePaymentBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
   if (newTradeBtn) newTradeBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
 
-  // Add role class to body for CSS targeting
   document.body.classList.remove('staff-role', 'seller-role', 'customer-role');
   if (isStaff) document.body.classList.add('staff-role');
   else if (isSeller) document.body.classList.add('seller-role');
@@ -50,7 +49,6 @@ window.checkStoredAuth = function() {
   var savedRole = localStorage.getItem('vinere_role');
   if (!savedRole || !PASSWORDS[savedRole]) return;
 
-  // Wait for Firebase Auth to restore session before initializing
   window.firebase.auth().onAuthStateChanged(async function(user) {
     if (user) {
       ROLE = savedRole;
@@ -59,7 +57,6 @@ window.checkStoredAuth = function() {
         await initApp();
       }
     }
-    // If no user, stay on login screen — user must log in again
   });
 };
 
@@ -72,17 +69,13 @@ window.login = async function() {
     if (hash === PASSWORDS[role]) {
       ROLE = role;
       USER_HASH = hash;
-
-      // Persist role for auto-login
       localStorage.setItem('vinere_role', role);
 
       try {
         var email = role + '@vinere.local';
-        // Try sign-in first (avoids rate limit on createUser for existing accounts)
         await window.firebase.auth().signInWithEmailAndPassword(email, input);
       } catch (err) {
         if (err.code === 'auth/user-not-found') {
-          // User doesn't exist yet — create them
           try {
             await window.firebase.auth().createUserWithEmailAndPassword(email, input);
           } catch (createErr) {
@@ -104,7 +97,6 @@ window.login = async function() {
       }
 
       showApp(role);
-
       await initApp();
       showToast('Welcome, ' + role, 'success', 2000);
       return;
@@ -120,12 +112,9 @@ window.logout = function() {
   localStorage.removeItem('vinere_role');
   ROLE = null;
   USER_HASH = null;
-
-  // Sign out from Firebase if available
   if (window.firebase && window.firebase.auth) {
     window.firebase.auth().signOut().catch(function() {});
   }
-
   location.reload();
 };
 
@@ -143,15 +132,11 @@ var DK = {
   paymentStatus: 'Payment Status', paymentLog: 'Payment Log', memoNo: 'Memo No.'
 };
 
-// Robust field getter — tries multiple key variants
 function getField(row, key) {
   if (row[key] !== undefined) return row[key];
-  // Try with trailing space (old data compatibility)
   if (row[key + ' '] !== undefined) return row[key + ' '];
-  // Try lowercase
   var lower = key.toLowerCase();
   if (row[lower] !== undefined) return row[lower];
-  // Try title case
   var title = key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
   if (row[title] !== undefined) return row[title];
   return undefined;
@@ -190,7 +175,6 @@ async function initApp() {
 }
 
 async function loadGoldRate() {
-  // 1. Derive gold rate from fetched ORDERS (cross-device, no extra permissions needed)
   var unsold = ORDERS.filter(function(r) {
     return (r[DK.paymentStatus] || 'Not Sold').trim() === 'Not Sold';
   });
@@ -207,7 +191,6 @@ async function loadGoldRate() {
     }
   }
 
-  // 2. Fallback to localStorage (same device, recent session)
   var saved = localStorage.getItem('vinere_gold_rate');
   if (saved) {
     var val = parseFloat(saved);
@@ -220,7 +203,6 @@ async function loadGoldRate() {
     }
   }
 
-  // 3. Default
   GOLD_RATE = 16000;
   window.GOLD_RATE = 16000;
   var input = $('goldRateInput');
@@ -296,7 +278,6 @@ function equalizeColumnWidths() {
   var cols = table.querySelectorAll('colgroup col');
   if (!cols.length) return;
 
-  // 13 columns: Sr, Customer, Style, Date, Gross, Net, Carat, SubTotal, $, Memo, SoldTo, SalePrice, Status
   var baseWidths = [5, 7, 10, 8, 6, 6, 6, 9, 5, 7, 11, 8, 12];
   var total = baseWidths.reduce(function(s, w) { return s + w; }, 0);
 
@@ -318,11 +299,9 @@ function switchView(view) {
   currentView = view;
   currentPage = 1;
 
-  // Toggle button states
   $('ordersViewBtn').classList.toggle('active', isOrders);
   $('tradingViewBtn').classList.toggle('active', !isOrders);
 
-  // Animate out old view
   var oldTable = isOrders ? $('tradingTable') : $('ordersTable');
   var oldKpi = isOrders ? $('tradeKpiGrid') : $('kpiGrid');
   var oldPag = isOrders ? $('tradePaginationBar') : $('paginationBar');
@@ -333,9 +312,7 @@ function switchView(view) {
   if (oldPag) oldPag.classList.add('switching-out');
   if (oldCards) oldCards.classList.add('switching-out');
 
-  // After fade out, switch and animate in
   setTimeout(function() {
-    // Hide old view completely
     if (oldTable) {
       oldTable.style.display = 'none';
       oldTable.classList.remove('switching-out');
@@ -347,7 +324,6 @@ function switchView(view) {
       oldCards.classList.remove('switching-out');
     }
 
-    // Show new view
     $('ordersTable').style.display = isOrders ? 'table' : 'none';
     $('tradingTable').style.display = isOrders ? 'none' : 'table';
     $('kpiGrid').style.display = isOrders ? 'grid' : 'none';
@@ -360,7 +336,6 @@ function switchView(view) {
     $('newTradeBtn').style.display = (!isOrders && ROLE !== 'customer') ? 'inline-flex' : 'none';
     $('headerStats').style.display = 'flex';
 
-    // Animate in new view
     var newTable = isOrders ? $('ordersTable') : $('tradingTable');
     var newKpi = isOrders ? $('kpiGrid') : $('tradeKpiGrid');
     var newPag = isOrders ? $('paginationBar') : $('tradePaginationBar');
@@ -444,17 +419,15 @@ $('refreshBtn').addEventListener('click', async function() {
   showToast('Data refreshed', 'success', 2000);
 });
 
-/* ============ NEW ORDER ============ */
+/* ============ NEW ORDER / TRADE / PAYMENT ============ */
 $('newOrderBtn').addEventListener('click', function() {
   if (window.openOrderPanel) window.openOrderPanel();
 });
 
-/* ============ NEW TRADE ============ */
 $('newTradeBtn').addEventListener('click', function() {
   if (window.openTradePanel) window.openTradePanel();
 });
 
-/* ============ RECEIVE PAYMENT ============ */
 $('receivePaymentBtn').addEventListener('click', function() {
   if (window.openPaymentSearch) window.openPaymentSearch();
 });
@@ -689,7 +662,7 @@ function renderUnifiedView() {
   if (soldTo) parts.push('Buyer <strong>' + escapeHtml(soldTo) + '</strong>');
   banner.innerHTML = 'Combined results for ' + parts.join(' + ') +
     '<span style="margin-left:12px;font-size:12px;opacity:0.8;">Orders are blue · Trades are green</span>' +
-    '<button class="btn text small" style="margin-left:auto;" onclick="$('filterMemoNo').value='';$('filterSoldTo').value='';window.currentPage=1;renderAll();">Show tab view</button>';
+    '<button class="btn text small" style="margin-left:auto;" onclick="$(\'filterMemoNo\').value=\'\';$(\'filterSoldTo\').value=\'\';window.currentPage=1;renderAll();">Show tab view</button>';
   banner.style.display = 'flex';
 
   // Payment summary
