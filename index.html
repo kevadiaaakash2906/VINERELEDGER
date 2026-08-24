@@ -54,15 +54,18 @@
 
   <main>
     <div id="ordersView">
-            <div class="filter-bar compact">
+<div class="filter-bar compact">
   <div class="field" style="margin:0;flex:0 0 auto;">
     <label style="font-size:11px;margin-bottom:2px;">Gold Rate (₹/gm)</label>
     <input type="number" id="goldRateInput" value="16000" step="100" style="width:100px;padding:6px 10px;font-size:14px;">
   </div>
-  <input type="text" id="filterSoldTo" placeholder="Sold to…" style="width:160px;">
-  <input type="text" id="filterMemoNo" placeholder="Memo no…" style="width:140px;">
-  <button class="btn secondary small" id="clearFiltersBtn">Clear</button>
   <span class="rate-note" id="rateNote"></span>
+
+  <div class="filter-right">
+    <input type="text" id="filterSoldTo" class="filter-pill" placeholder="Sold to…" autocomplete="off">
+    <input type="text" id="filterMemoNo" class="filter-pill" placeholder="Memo no…" autocomplete="off">
+    <button class="btn secondary small" id="clearFiltersBtn">Clear</button>
+  </div>
 </div>
       </div>
 
