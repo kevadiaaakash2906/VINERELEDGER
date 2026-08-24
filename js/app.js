@@ -749,7 +749,7 @@ function getUnifiedResults() {
 
   var orderRows = [...ORDERS].filter(function(r) {
     if (q && !Object.values(r).some(function(v) { return String(v).toLowerCase().includes(q); })) return false;
-    if (memoNo && !String(r[DK.memoNo] || '').toLowerCase().includes(memoNo)) return false;
+    if (memoNo && String(r[DK.memoNo] || '').toLowerCase() !== memoNo) return false;
     if (soldTo && !String(r[DK.soldTo] || '').toLowerCase().includes(soldTo)) return false;
     return true;
   });
@@ -757,7 +757,7 @@ function getUnifiedResults() {
 
   var tradeRows = [...TRADING].filter(function(r) {
     if (q && !Object.values(r).some(function(v) { return String(v).toLowerCase().includes(q); })) return false;
-    if (memoNo && !String(r[SHEET_KEYS.memoNo] || '').toLowerCase().includes(memoNo)) return false;
+    if (memoNo && String(r[SHEET_KEYS.memoNo] || '').toLowerCase() !== memoNo) return false;
     if (soldTo && !String(r[SHEET_KEYS.soldTo] || '').toLowerCase().includes(soldTo)) return false;
     return true;
   });
