@@ -3,6 +3,13 @@
    ============================================ */
 
 function renderTable() {
+  // Restore original orders table header (unified view may have changed it)
+  $('ordersTable').querySelector('thead tr').innerHTML =
+    '<th class="num">Sr.</th><th>Customer</th><th>Style No.</th><th>Date</th>' +
+    '<th class="num">Gross Wt</th><th class="num">Net Wt</th><th class="num">Carat</th>' +
+    '<th class="num">Sub Total</th><th class="num">$</th><th>Memo No.</th><th>Sold To</th>' +
+    '<th class="num">Sale Price</th><th>Status</th>';
+
   var tbody = $('tbody');
   var filtered = getFilteredOrders();
 
@@ -334,6 +341,11 @@ function renderTradeCards(rows) {
     });
   });
 }
+
+/* ============================================
+   UNIFIED VIEW (Orders + Trading combined)
+   ============================================ */
+
 function renderUnifiedTable() {
   var tbody = $('tbody');
   var results = getUnifiedResults();
@@ -344,13 +356,12 @@ function renderUnifiedTable() {
   $('ordersTable').style.display = 'table';
   $('tradingTable').style.display = 'none';
 
-  // Set unified header
   $('ordersTable').querySelector('thead tr').innerHTML =
-    '<th class="num">Sr.</th><th>Type</th><th>Date</th><th>Party</th><th>Item</th>' +
-    '<th class="num">Sale Price</th><th>Sold To</th><th>Status</th><th class="num">P/L or Cost</th>';
+    '<th class="num">Sr.</th><th>Type</th><th>Date</th><th>Buyer</th><th>Item</th>' +
+    '<th class="num">Sale Price</th><th>Status</th><th class="num">P / L</th>';
 
   if (!pageRows.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-dim)">No orders or trades match the current filters</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-dim)">No orders or trades match the current filters</td></tr>';
     return;
   }
 
@@ -366,16 +377,21 @@ function renderUnifiedTable() {
       'Paid': 'status-paid'
     }[status] || 'status-not-sold';
 
-    var party = isOrder ? r[DK.customer] : r[SHEET_KEYS.vendor];
+    var buyer = isOrder ? (r[DK.soldTo] || r[DK.customer] || '') : (r[SHEET_KEYS.soldTo] || r[SHEET_KEYS.vendor] || '');
     var item = isOrder ? r[DK.style] : r[SHEET_KEYS.item];
     var salePrice = parseFloat(r[K.salePrice]) || 0;
-    var soldTo = r[K.soldTo] || '';
 
     var metric = '';
     var metricColor = 'var(--text-dim)';
     if (isOrder) {
       var cost = parseFloat(r[DK.usd]) || 0;
-      metric = cost ? '$' + fmtMoney(cost) : '';
+      if (salePrice) {
+        var pl = salePrice - cost;
+        metric = (pl >= 0 ? '+' : '-') + '$' + fmtMoney(Math.abs(pl));
+        metricColor = pl >= 0 ? 'var(--success)' : 'var(--error)';
+      } else {
+        metric = cost ? '$' + fmtMoney(cost) + ' cost' : '';
+      }
     } else {
       var purchase = parseFloat(r[SHEET_KEYS.purchasePrice]) || 0;
       var profit = salePrice ? salePrice - purchase : 0;
@@ -392,10 +408,9 @@ function renderUnifiedTable() {
       '<td class="num">' + sr + '</td>' +
       '<td>' + badge + '</td>' +
       '<td>' + fmtDate(r[K.date]) + '</td>' +
-      '<td>' + highlightText(party || '', q) + '</td>' +
+      '<td>' + highlightText(buyer, q) + '</td>' +
       '<td><strong>' + highlightText(item || '', q) + '</strong></td>' +
       '<td class="num">' + (salePrice ? '$' + fmtMoney(salePrice) : '') + '</td>' +
-      '<td>' + highlightText(soldTo, q) + '</td>' +
       '<td><span class="status-badge ' + statusClass + '">' + status + '</span></td>' +
       '<td class="num" style="color:' + metricColor + '">' + metric + '</td>' +
       '</tr>';
@@ -438,7 +453,7 @@ function renderUnifiedCards() {
       'Paid': 'status-paid'
     }[status] || 'status-not-sold';
 
-    var party = isOrder ? r[DK.customer] : r[SHEET_KEYS.vendor];
+    var buyer = isOrder ? (r[DK.soldTo] || r[DK.customer] || '') : (r[SHEET_KEYS.soldTo] || r[SHEET_KEYS.vendor] || '');
     var item = isOrder ? r[DK.style] : r[SHEET_KEYS.item];
     var salePrice = parseFloat(r[K.salePrice]) || 0;
 
@@ -447,23 +462,30 @@ function renderUnifiedCards() {
       : '<span class="type-badge trade-badge">TRADE</span>';
     var cardClass = isOrder ? 'unified-card-order' : 'unified-card-trade';
 
-    var extraLabel = isOrder ? 'Net Wt' : 'P/L';
+    var extraLabel = 'P / L';
     var extraVal = '';
+    var extraColor = 'var(--text-dim)';
     if (isOrder) {
-      var net = parseFloat(r[DK.netWt]) || 0;
-      extraVal = net ? net + ' g' : '—';
+      var cost = parseFloat(r[DK.usd]) || 0;
+      if (salePrice) {
+        var pl = salePrice - cost;
+        extraVal = (pl >= 0 ? '+' : '-') + '$' + fmtMoney(Math.abs(pl));
+        extraColor = pl >= 0 ? 'var(--success)' : 'var(--error)';
+      } else {
+        extraVal = cost ? '$' + fmtMoney(cost) + ' cost' : '—';
+      }
     } else {
       var purchase = parseFloat(r[SHEET_KEYS.purchasePrice]) || 0;
       var profit = salePrice ? salePrice - purchase : 0;
       extraVal = salePrice ? (profit >= 0 ? '+' : '-') + '$' + fmtMoney(Math.abs(profit)) : '—';
+      extraColor = salePrice ? (profit >= 0 ? 'var(--success)' : 'var(--error)') : 'var(--text-dim)';
     }
-    var extraColor = isOrder ? 'var(--md-on-surface)' : (salePrice && (salePrice - purchase) >= 0 ? 'var(--success)' : 'var(--error)');
 
     return '<div class="order-card ' + cardClass + '" data-id="' + r._id + '" data-type="' + r._type + '">' +
       '<div class="card-header">' +
       '<div class="card-header-left">' +
       '<span class="card-title">' + highlightText(item || '', q) + ' ' + badge + '</span>' +
-      '<span class="card-meta">' + escapeHtml(party || '') + ' · ' + fmtDate(r[K.date]) + '</span>' +
+      '<span class="card-meta">' + escapeHtml(buyer) + ' · ' + fmtDate(r[K.date]) + '</span>' +
       '</div>' +
       '<div class="card-header-right">' +
       '<span class="card-sr-badge">#' + r[K.sr] + '</span>' +
@@ -489,6 +511,7 @@ function renderUnifiedCards() {
   });
 }
 
+/* ============ EXPOSE GLOBALLY ============ */
 window.renderTable = renderTable;
 window.renderTradeTable = renderTradeTable;
 window.renderUnifiedTable = renderUnifiedTable;
