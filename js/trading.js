@@ -251,15 +251,27 @@ async function renumberTradesAfterDelete(deletedSr) {
   });
   for (var i = 0; i < toUpdate.length; i++) {
     var r = toUpdate[i];
-    var newSr = (parseInt(r[SHEET_KEYS.sr]) - 1).toString();
+    var oldSr = r[SHEET_KEYS.sr];
+    var newSr = (parseInt(oldSr) - 1).toString();
+    var oldId = r._id;
+    var newId = 'trade_' + newSr;
 
-    // Update in-memory immediately so UI is correct even if fetch is stale
+    // Update in-memory immediately
     r[SHEET_KEYS.sr] = newSr;
+    r._id = newId;
 
     var data = {};
     for (var k in r) data[k] = r[k];
     data[SHEET_KEYS.sr] = newSr;
-    try { await window.updateTrading(r._id, data); } catch(e) { console.error('Renumber failed for trade', r._id, e); }
+
+    try {
+      // Create new doc with correct ID
+      await window.addTrading(data, newId);
+      // Delete old doc
+      await window.deleteTrading(oldId, oldSr);
+    } catch(e) {
+      console.error('Renumber failed for trade', oldId, '→', newId, e);
+    }
   }
 }
 
