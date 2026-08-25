@@ -22,8 +22,6 @@ window.openExpensePanel = function(id) {
     $('e_description').value = exp[EXPENSE_KEYS.description] || '';
     $('e_amount').value = exp[EXPENSE_KEYS.amount] || '';
     $('e_seller').value = exp[EXPENSE_KEYS.seller] || '';
-    $('e_reimbursed').checked = String(exp[EXPENSE_KEYS.reimbursed] || '').toLowerCase() === 'yes';
-    $('e_reimbursementDate').value = exp[EXPENSE_KEYS.reimbursementDate] || '';
     $('e_notes').value = exp[EXPENSE_KEYS.notes] || '';
 
     $('deleteExpenseBtn').style.display = (ROLE === 'staff') ? 'inline-flex' : 'none';
@@ -39,8 +37,7 @@ window.openExpensePanel = function(id) {
 };
 
 function resetExpensePanel() {
-  ['e_date','e_description','e_amount','e_seller','e_reimbursementDate','e_notes'].forEach(function(id) { $(id).value = ''; });
-  $('e_reimbursed').checked = false;
+  ['e_date','e_description','e_amount','e_seller','e_notes'].forEach(function(id) { $(id).value = ''; });
   $('e_category').value = 'Travel';
   $('expenseSaveMsg').textContent = '';
   document.querySelectorAll('[id^="err_e_"]').forEach(function(el) { el.textContent = ''; });
@@ -82,8 +79,6 @@ $('saveExpenseBtn').addEventListener('click', async function() {
   data[EXPENSE_KEYS.description] = $('e_description').value.trim();
   data[EXPENSE_KEYS.amount] = parseFloat($('e_amount').value).toString();
   data[EXPENSE_KEYS.seller] = $('e_seller').value.trim();
-  data[EXPENSE_KEYS.reimbursed] = $('e_reimbursed').checked ? 'Yes' : 'No';
-  data[EXPENSE_KEYS.reimbursementDate] = $('e_reimbursed').checked ? ($('e_reimbursementDate').value || $('e_date').value) : '';
   data[EXPENSE_KEYS.notes] = $('e_notes').value.trim();
 
   try {
