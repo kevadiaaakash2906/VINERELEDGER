@@ -3,15 +3,20 @@
    ============================================ */
 
 function renderTable() {
-  // Restore original orders table header (unified view may have changed it)
+  var sortIcon = '↕';
+  if (sortCol === 'inCt') sortIcon = sortDesc ? '↓' : '↑';
+
+  // Restore original orders table header
   var theadTr = $('ordersTable').querySelector('thead tr');
   if (theadTr) {
     theadTr.innerHTML =
       '<th class="num">Sr.</th><th>Customer</th><th>Style No.</th><th>Date</th>' +
-      '<th class="num">Gross Wt</th><th class="num">Net Wt</th><th class="num">Carat</th>' +
+      '<th class="num">Gross Wt</th><th class="num">Net Wt</th>' +
+      '<th class="num sortable" onclick="window.sortByColumn(\'inCt\')" style="cursor:pointer;">Carat <span class="sort-icon">' + sortIcon + '</span></th>' +
       '<th class="num">Sub Total</th><th class="num">$</th><th>Memo No.</th><th>Sold To</th>' +
       '<th class="num">Sale Price</th><th>Status</th>';
   }
+  // ... keep everything below this exactly as-is ...
   // Restore 13-column colgroup
   var colgroup = $('ordersTable').querySelector('colgroup');
   if (colgroup) {
