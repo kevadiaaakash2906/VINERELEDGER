@@ -153,6 +153,12 @@ var SHEET_KEYS = {
 /* ============ GLOBAL STATE ============ */
 var ORDERS = [];
 var TRADING = [];
+var EXPENSES = [];
+var EXPENSE_KEYS = {
+  sr: 'Sr. No.', date: 'Date', category: 'Category', description: 'Description',
+  amount: 'Amount', seller: 'Seller', reimbursed: 'Reimbursed',
+  reimbursementDate: 'Reimbursement Date', notes: 'Notes'
+};
 var currentSearchQuery = '';
 var GOLD_RATE = 16000;
 window.GOLD_RATE = GOLD_RATE;
@@ -169,6 +175,7 @@ var PAGE_SIZE = 50;
 async function initApp() {
   await doFetchOrders();
   await doFetchTrading();
+  await doFetchExpenses();        
   await loadGoldRate();
   renderAll();
   initSwipeGestures();
@@ -240,6 +247,15 @@ async function doFetchTrading() {
     showToast('Failed to load trading', 'error');
   }
 }
+async function doFetchExpenses() {
+  try {
+    var result = await window.fetchExpenses();
+    EXPENSES = result.rows.map(normalizeRow);
+  } catch (err) {
+    console.error('Fetch expenses failed', err);
+    showToast('Failed to load expenses', 'error');
+  }
+}
 
 /* ============ RENDER ALL ============ */
 function renderAll() {
@@ -262,15 +278,18 @@ function renderAll() {
     renderTable();
     renderPagination();
     populateFilters();
-  } else {
+  } else if (currentView === 'trading') {
     renderTradeKPIs();
     renderTradeTable();
     renderTradePagination();
+  } else if (currentView === 'expenses') {
+    renderExpenseKPIs();
+    renderExpenseTable();
+    renderExpensePagination();
   }
   equalizeColumnWidths();
   updateSearchUI();
 }
-
 /* ============ COLUMN WIDTHS ============ */
 function equalizeColumnWidths() {
   var table = document.getElementById('ordersTable');
@@ -290,6 +309,10 @@ function equalizeColumnWidths() {
 /* ============ VIEW TOGGLE ============ */
 $('ordersViewBtn').addEventListener('click', function() { switchView('orders'); });
 $('tradingViewBtn').addEventListener('click', function() { switchView('trading'); });
+$('expensesViewBtn').addEventListener('click', function() { switchView('expenses'); });
+$('newExpenseBtn').addEventListener('click', function() {
+  if (window.openExpensePanel) window.openExpensePanel();
+});
 
 function switchView(view) {
   if (view === currentView) return;
