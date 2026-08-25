@@ -57,6 +57,7 @@ window.checkStoredAuth = function() {
       showApp(savedRole);
       if (typeof initApp === 'function') {
         await initApp();
+        switchView('orders');  // Initialize view - show only Orders buttons
       }
     }
   });
@@ -100,6 +101,7 @@ window.login = async function() {
 
       showApp(role);
       await initApp();
+      switchView('orders');  // Initialize view - show only Orders buttons
       showToast('Welcome, ' + role, 'success', 2000);
       return;
     }
