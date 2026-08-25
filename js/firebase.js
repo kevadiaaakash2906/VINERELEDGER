@@ -13,7 +13,6 @@ var firebaseConfig = {
   measurementId: "G-HQN3J4LGXE"
 };
 
-// Initialize Firebase (safe if already initialized)
 try {
   window.firebase.initializeApp(firebaseConfig);
 } catch (e) {
@@ -25,10 +24,8 @@ try {
 }
 
 var db = window.firebase.firestore();
-
 var SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbx9yEy0j0EHMegp_tzHX5-Q1xSuLHsp6Em98fLIg8wp9hbzIVbkTHeWhkWzZHgLE9RAYw/exec';
 
-/* Wait for Firebase Auth to be ready (session restored from disk) */
 var authReadyPromise = new Promise(function(resolve) {
   var unsub = window.firebase.auth().onAuthStateChanged(function(user) {
     unsub();
@@ -47,9 +44,7 @@ async function fetchOrders() {
   await ensureAuth();
   var snap = await db.collection('orders').get();
   var rows = snap.docs.map(function(d) { return { _id: d.id, ...d.data() }; });
-  rows.sort(function(a, b) {
-    return (parseInt(a['Sr. No.']) || 0) - (parseInt(b['Sr. No.']) || 0);
-  });
+  rows.sort(function(a, b) { return (parseInt(a['Sr. No.']) || 0) - (parseInt(b['Sr. No.']) || 0); });
   return { rows: rows };
 }
 
@@ -57,8 +52,7 @@ async function addOrder(data, customId) {
   await ensureAuth();
   var sr = data['Sr. No.'] || '0';
   var id = customId || ('order_' + sr);
-  var ref = db.collection('orders').doc(id);
-  await ref.set({
+  await db.collection('orders').doc(id).set({
     ...data,
     createdAt: window.firebase.firestore.FieldValue.serverTimestamp(),
     updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
@@ -87,9 +81,7 @@ async function fetchTrading() {
   await ensureAuth();
   var snap = await db.collection('trading').get();
   var rows = snap.docs.map(function(d) { return { _id: d.id, ...d.data() }; });
-  rows.sort(function(a, b) {
-    return (parseInt(a['Sr. No.']) || 0) - (parseInt(b['Sr. No.']) || 0);
-  });
+  rows.sort(function(a, b) { return (parseInt(a['Sr. No.']) || 0) - (parseInt(b['Sr. No.']) || 0); });
   return { rows: rows };
 }
 
@@ -97,8 +89,7 @@ async function addTrading(data, customId) {
   await ensureAuth();
   var sr = data['Sr. No.'] || '0';
   var id = customId || ('trade_' + sr);
-  var ref = db.collection('trading').doc(id);
-  await ref.set({
+  await db.collection('trading').doc(id).set({
     ...data,
     createdAt: window.firebase.firestore.FieldValue.serverTimestamp(),
     updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
@@ -127,9 +118,7 @@ async function fetchExpenses() {
   await ensureAuth();
   var snap = await db.collection('expenses').get();
   var rows = snap.docs.map(function(d) { return { _id: d.id, ...d.data() }; });
-  rows.sort(function(a, b) {
-    return (parseInt(a['Sr. No.']) || 0) - (parseInt(b['Sr. No.']) || 0);
-  });
+  rows.sort(function(a, b) { return (parseInt(a['Sr. No.']) || 0) - (parseInt(b['Sr. No.']) || 0); });
   return { rows: rows };
 }
 
@@ -137,8 +126,7 @@ async function addExpense(data, customId) {
   await ensureAuth();
   var sr = data['Sr. No.'] || '0';
   var id = customId || ('expense_' + sr);
-  var ref = db.collection('expenses').doc(id);
-  await ref.set({
+  await db.collection('expenses').doc(id).set({
     ...data,
     createdAt: window.firebase.firestore.FieldValue.serverTimestamp(),
     updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
@@ -180,7 +168,7 @@ function syncToSheet(payload) {
   });
 }
 
-/* ============ SETTINGS (Gold Rate) ============ */
+/* ============ SETTINGS ============ */
 async function fetchSettings() {
   await ensureAuth();
   var doc = await db.collection('settings').doc('goldRate').get();
