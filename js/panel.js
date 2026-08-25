@@ -176,6 +176,7 @@ window.openOrderPanel = function(id) {
 
   overlay.style.display = 'block';
   panel.classList.add('open');
+  document.body.classList.add('panel-open');
 };
 
 function setReadOnly(ro) {
@@ -192,6 +193,7 @@ function closePanel() {
   $('panel').classList.remove('open');
   $('overlay').style.display = 'none';
   editingId = null;
+  document.body.classList.remove('panel-open');
 }
 
 /* ============ LIVE PREVIEW ============ */
