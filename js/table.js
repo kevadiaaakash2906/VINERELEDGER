@@ -41,6 +41,7 @@ function renderTable() {
       ? 'No orders match "' + escapeHtml(window.currentSearchQuery) + '"' 
       : 'No orders found';
     tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:40px;color:var(--text-dim)">' + msg + '</td></tr>';
+    renderCards([]);
     return;
   }
 
@@ -246,7 +247,7 @@ function renderCards(rows) {
         '<div class="card-row" style="padding:6px 0;"><span class="card-label">Sale Price</span><span class="card-value">' + (salePrice ? '$' + fmtMoney(salePrice) : '—') + '</span></div>' +
         '<div class="card-row" style="padding:6px 0;"><span class="card-label">Balance</span><span class="card-value">$' + (r[DK.balanceDue] || '0') + '</span></div>' +
         '</div>' +
-        '<div class="card-actions" onclick="event.stopPropagation();if(window.openOrderPanel)window.openOrderPanel('' + r._id + '')">Open</div>' +
+        '<div class="card-actions" onclick="event.stopPropagation();if(window.openOrderPanel)window.openOrderPanel(\'' + r._id + '\')">Open</div>' +
         '</div>';
     }
 
@@ -339,6 +340,7 @@ function renderCards(rows) {
       '</div>' +
       '<div class="card-summary">' + summaryRows + '</div>' +
       '<div class="card-body">' + bodyRows + '</div>' +
+      '<div class="card-actions" onclick="event.stopPropagation();if(window.openOrderPanel)window.openOrderPanel(\'' + r._id + '\')">Open</div>' +
       '</div>';
   }).join('');
 
@@ -347,6 +349,7 @@ function renderCards(rows) {
       if (e.target.closest('.card-header')) return;
       if (window.openOrderPanel) window.openOrderPanel(card.dataset.id);
     });
+    setupCardSwipe(card);
   });
 }
 
@@ -368,6 +371,7 @@ function renderTradeTable() {
       ? 'No trades match "' + escapeHtml(window.currentSearchQuery) + '"' 
       : 'No trades found';
     tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-dim)">' + msg + '</td></tr>';
+    renderTradeCards([]);
     return;
   }
 
@@ -446,7 +450,7 @@ function renderTradeCards(rows) {
       '<span class="status-badge ' + statusClass + '">' + status + '</span>' +
       '</div>' +
       '</div>' +
-      '<div class="card-actions" onclick="event.stopPropagation();if(ROLE!=='customer'&&window.openEditTrade)window.openEditTrade('' + r._id + '')">Open</div>' +
+      '<div class="card-actions" onclick="event.stopPropagation();if(ROLE!=='customer'&&window.openEditTrade)window.openEditTrade(\'' + r._id + '\')">Open</div>' +
       '</div>';
   }).join('');
 
@@ -649,6 +653,7 @@ function renderExpenseTable() {
       ? 'No expenses match "' + escapeHtml(window.currentSearchQuery) + '"'
       : 'No expenses found';
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-dim)">' + msg + '</td></tr>';
+    renderExpenseCards([]);
     return;
   }
 
@@ -700,7 +705,7 @@ function renderExpenseCards(rows) {
       '<span class="card-value">$' + fmtMoney(amount) + '</span>' +
       '</div>' +
       '</div>' +
-      '<div class="card-actions" onclick="event.stopPropagation();if(ROLE!=='customer'&&window.openExpensePanel)window.openExpensePanel('' + r._id + '')">Open</div>' +
+      '<div class="card-actions" onclick="event.stopPropagation();if(ROLE!=='customer'&&window.openExpensePanel)window.openExpensePanel(\'' + r._id + '\')">Open</div>' +
       '</div>';
   }).join('');
 
