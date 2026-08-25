@@ -991,7 +991,7 @@ main {
 /* ============================================
    PANELS (Side Sheets)
    ============================================ */
-#overlay, #tradeOverlay, #paymentSearchOverlay {
+#overlay, #tradeOverlay, #expenseOverlay, #paymentSearchOverlay {
   display: none;
   position: fixed;
   inset: 0;
@@ -1000,12 +1000,12 @@ main {
   z-index: 200;
 }
 
-#overlay.open, #tradeOverlay.open {
+#overlay.open, #tradeOverlay.open, #expenseOverlay.open {
   opacity: 1;
   visibility: visible;
 }
 
-#panel, #tradePanel, #paymentSearchModal {
+#panel, #tradePanel, #expensePanel, #paymentSearchModal {
   position: fixed;
   top: 0;
   right: 0;
@@ -1022,7 +1022,7 @@ main {
   overflow: hidden;
 }
 
-#panel.open, #tradePanel.open, #paymentSearchModal.open {
+#panel.open, #tradePanel.open, #expensePanel.open, #paymentSearchModal.open {
   transform: translateX(0);
 }
 
@@ -1042,7 +1042,7 @@ main {
   color: var(--md-on-surface);
 }
 
-#closePanel, #closeTradePanel, #closePaymentSearch {
+#closePanel, #closeTradePanel, #closeExpensePanel, #closePaymentSearch {
   width: 40px;
   height: 40px;
   display: flex;
@@ -1057,7 +1057,7 @@ main {
   transition: all var(--duration-fast) var(--ease-standard);
 }
 
-#closePanel:hover, #closeTradePanel:hover, #closePaymentSearch:hover {
+#closePanel:hover, #closeTradePanel:hover, #closeExpensePanel:hover, #closePaymentSearch:hover {
   background: var(--md-surface-2);
   color: var(--md-on-surface);
 }
@@ -1525,7 +1525,7 @@ input[type="checkbox"] {
     grid-template-columns: 1fr;
   }
 
-  #panel, #tradePanel, #paymentSearchModal {
+  #panel, #tradePanel, #expensePanel, #paymentSearchModal {
     max-width: 100%;
   }
 
