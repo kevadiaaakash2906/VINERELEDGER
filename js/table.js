@@ -3,16 +3,17 @@
    ============================================ */
 
 function renderTable() {
-  var sortIcon = '↕';
-  if (sortCol === 'inCt') sortIcon = sortDesc ? '↓' : '↑';
+  var srIcon = sortCol === 'sr' ? (sortDesc ? '↓' : '↑') : '↕';
+  var ctIcon = sortCol === 'inCt' ? (sortDesc ? '↓' : '↑') : '↕';
 
   // Restore original orders table header
   var theadTr = $('ordersTable').querySelector('thead tr');
   if (theadTr) {
     theadTr.innerHTML =
-      '<th class="num">Sr.</th><th>Customer</th><th>Style No.</th><th>Date</th>' +
+      '<th class="num sortable" onclick="window.sortByColumn(\'sr\')" style="cursor:pointer;">Sr. <span class="sort-icon">' + srIcon + '</span></th>' +
+      '<th>Customer</th><th>Style No.</th><th>Date</th>' +
       '<th class="num">Gross Wt</th><th class="num">Net Wt</th>' +
-      '<th class="num sortable" onclick="window.sortByColumn(\'inCt\')" style="cursor:pointer;">Carat <span class="sort-icon">' + sortIcon + '</span></th>' +
+      '<th class="num sortable" onclick="window.sortByColumn(\'inCt\')" style="cursor:pointer;">Carat <span class="sort-icon">' + ctIcon + '</span></th>' +
       '<th class="num">Sub Total</th><th class="num">$</th><th>Memo No.</th><th>Sold To</th>' +
       '<th class="num">Sale Price</th><th>Status</th>';
   }
@@ -247,7 +248,7 @@ function renderCards(rows) {
         '<div class="card-row" style="padding:6px 0;"><span class="card-label">Sale Price</span><span class="card-value">' + (salePrice ? '$' + fmtMoney(salePrice) : '—') + '</span></div>' +
         '<div class="card-row" style="padding:6px 0;"><span class="card-label">Balance</span><span class="card-value">$' + (r[DK.balanceDue] || '0') + '</span></div>' +
         '</div>' +
-        '<div class="card-actions" onclick="event.stopPropagation();if(window.openOrderPanel)window.openOrderPanel(\'' + r._id + '\')">Open</div>' +
+        '<div class="card-actions" onclick="event.stopPropagation();if(window.openOrderPanel)window.openOrderPanel(String(r._id))">Open</div>' +
         '</div>';
     }
 
@@ -340,7 +341,7 @@ function renderCards(rows) {
       '</div>' +
       '<div class="card-summary">' + summaryRows + '</div>' +
       '<div class="card-body">' + bodyRows + '</div>' +
-      '<div class="card-actions" onclick="event.stopPropagation();if(window.openOrderPanel)window.openOrderPanel(\'' + r._id + '\')">Open</div>' +
+      '<div class="card-actions" onclick="event.stopPropagation();if(window.openOrderPanel)window.openOrderPanel(String(r._id))">Open</div>' +
       '</div>';
   }).join('');
 
@@ -450,7 +451,7 @@ function renderTradeCards(rows) {
       '<span class="status-badge ' + statusClass + '">' + status + '</span>' +
       '</div>' +
       '</div>' +
-      '<div class="card-actions" onclick="event.stopPropagation();if(ROLE!=='customer'&&window.openEditTrade)window.openEditTrade(\'' + r._id + '\')">Open</div>' +
+      '<div class="card-actions" onclick="event.stopPropagation();if(ROLE!==\'customer\'&&window.openEditTrade)window.openEditTrade(String(r._id))">Open</div>' +
       '</div>';
   }).join('');
 
@@ -698,14 +699,14 @@ function renderExpenseCards(rows) {
       '<div class="card-header">' +
       '<div class="card-header-left">' +
       '<span class="card-title">' + escapeHtml(r[K.category] || 'Misc') + '</span>' +
-      '<span class="card-meta">' + escapeHtml(r[K.description] || '') + ' \u00b7 ' + fmtDate(r[K.date]) + '</span>' +
+      '<span class="card-meta">' + escapeHtml(r[K.description] || '') + ' · ' + fmtDate(r[K.date]) + '</span>' +
       '</div>' +
       '<div class="card-header-right">' +
       '<span class="card-sr-badge">#' + r[K.sr] + '</span>' +
       '<span class="card-value">$' + fmtMoney(amount) + '</span>' +
       '</div>' +
       '</div>' +
-      '<div class="card-actions" onclick="event.stopPropagation();if(ROLE!=='customer'&&window.openExpensePanel)window.openExpensePanel(\'' + r._id + '\')">Open</div>' +
+      '<div class="card-actions" onclick="event.stopPropagation();if(ROLE!==\'customer\'&&window.openExpensePanel)window.openExpensePanel(String(r._id))">Open</div>' +
       '</div>';
   }).join('');
 
