@@ -2147,3 +2147,128 @@ body.customer-role .trade-card:hover {
 /* When in expenses view, show them (handled by JS, but CSS fallback) */
 body.expenses-active #filterExpenseCategory,
 body.expenses-active #filterExpenseSeller { display: inline-block; }
+/* ============================================
+   MOBILE-FRIENDLY PATCHES — paste at end of style.css
+   ============================================ */
+
+/* Prevent body scroll when panel is open */
+body.panel-open {
+  overflow: hidden;
+  touch-action: none;
+}
+
+/* Panel rubber-band containment */
+#panel, #tradePanel, #expensePanel, #paymentSearchModal {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Pull-to-refresh indicator */
+.ptr-indicator {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(-40px);
+  z-index: 120;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+.ptr-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--md-outline);
+  border-top-color: var(--md-primary);
+  border-radius: 50%;
+  animation: ptrSpin 0.8s linear infinite;
+}
+@keyframes ptrSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Floating Action Button (mobile only) */
+.mobile-fab {
+  position: fixed;
+  right: 20px;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  box-shadow: var(--shadow-3);
+  z-index: 150;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease-standard), box-shadow 0.2s;
+}
+.mobile-fab:active {
+  transform: scale(0.92);
+  box-shadow: var(--shadow-2);
+}
+
+/* Card swipe actions */
+@media (max-width: 900px) {
+  .order-card, .trade-card, .expense-card {
+    touch-action: pan-y;
+    user-select: none;
+    position: relative;
+    overflow: hidden;
+  }
+  .card-actions {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+    cursor: pointer;
+  }
+  .order-card.swiped-left .card-actions,
+  .trade-card.swiped-left .card-actions,
+  .expense-card.swiped-left .card-actions {
+    opacity: 1;
+  }
+}
+
+/* iOS input zoom fix */
+@media (max-width: 900px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Larger touch targets on mobile */
+@media (max-width: 900px) {
+  .btn, .status-badge, .card-header, .pay-result-item,
+  .pagination-bar button, .search-clear, #closePanel, #closeTradePanel, #closeExpensePanel {
+    min-height: 44px;
+  }
+  .view-toggle .btn {
+    padding: 8px 20px;
+  }
+}
+
+/* Safe-area padding for notched devices */
+.topbar {
+  padding-top: max(var(--space-3), env(safe-area-inset-top));
+  padding-left: max(var(--space-5), env(safe-area-inset-left));
+  padding-right: max(var(--space-5), env(safe-area-inset-right));
+}
+#panel, #tradePanel, #expensePanel, #paymentSearchModal {
+  padding-bottom: env(safe-area-inset-bottom);
+}
