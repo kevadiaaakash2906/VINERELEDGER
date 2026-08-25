@@ -34,6 +34,7 @@ window.openExpensePanel = function(id) {
 
   $('expenseOverlay').style.display = 'block';
   $('expensePanel').classList.add('open');
+  document.body.classList.add('panel-open');
 };
 
 function resetExpensePanel() {
@@ -50,6 +51,7 @@ function closeExpensePanel() {
   $('expensePanel').classList.remove('open');
   $('expenseOverlay').style.display = 'none';
   editingExpenseId = null;
+  document.body.classList.remove('panel-open');
 }
 
 /* ============ SAVE ============ */
