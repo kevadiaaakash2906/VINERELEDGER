@@ -606,15 +606,12 @@ function renderExpenseTable() {
     var msg = window.currentSearchQuery
       ? 'No expenses match "' + escapeHtml(window.currentSearchQuery) + '"'
       : 'No expenses found';
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-dim)">' + msg + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-dim)">' + msg + '</td></tr>';
     return;
   }
 
   tbody.innerHTML = pageRows.map(function(r) {
     var amount = parseFloat(r[K.amount]) || 0;
-    var reimbursed = String(r[K.reimbursed] || '').toLowerCase() === 'yes';
-    var statusClass = reimbursed ? 'status-paid' : 'status-unpaid';
-    var statusText = reimbursed ? 'Reimbursed' : 'Pending';
 
     return '<tr data-id="' + r._id + '" style="cursor:pointer">' +
       '<td class="num">' + r[K.sr] + '</td>' +
@@ -623,8 +620,7 @@ function renderExpenseTable() {
       '<td>' + highlightText(r[K.description] || '', q) + '</td>' +
       '<td class="num">$' + fmtMoney(amount) + '</td>' +
       '<td>' + highlightText(r[K.seller] || '', q) + '</td>' +
-      '<td><span class="status-badge ' + statusClass + '">' + statusText + '</span></td>' +
-      '<td>' + (r[K.reimbursementDate] ? fmtDate(r[K.reimbursementDate]) : '\u2014') + '</td>' +
+      '<td>' + escapeHtml(r[K.notes] || '') + '</td>' +
       '</tr>';
   }).join('');
 
@@ -650,9 +646,6 @@ function renderExpenseCards(rows) {
 
   container.innerHTML = rows.map(function(r) {
     var amount = parseFloat(r[K.amount]) || 0;
-    var reimbursed = String(r[K.reimbursed] || '').toLowerCase() === 'yes';
-    var statusClass = reimbursed ? 'status-paid' : 'status-unpaid';
-    var statusText = reimbursed ? 'Reimbursed' : 'Pending';
 
     return '<div class="order-card expense-card" data-id="' + r._id + '">' +
       '<div class="card-header">' +
@@ -663,7 +656,6 @@ function renderExpenseCards(rows) {
       '<div class="card-header-right">' +
       '<span class="card-sr-badge">#' + r[K.sr] + '</span>' +
       '<span class="card-value">$' + fmtMoney(amount) + '</span>' +
-      '<span class="status-badge ' + statusClass + '">' + statusText + '</span>' +
       '</div>' +
       '</div>' +
       '</div>';
