@@ -626,10 +626,15 @@ function initSwipeGestures() {
 /* ============ SORT ============ */
 function sortByColumn(col) {
   if (sortCol === col) {
-    sortDesc = !sortDesc;
+    if (sortDesc) {
+      sortCol = null;   // third click = reset to default Sr. order
+      sortDesc = false;
+    } else {
+      sortDesc = true;  // second click = descending
+    }
   } else {
     sortCol = col;
-    sortDesc = false;
+    sortDesc = false;   // first click = ascending
   }
   currentPage = 1;
   renderAll();
@@ -652,10 +657,16 @@ function getFilteredOrders() {
   if (memoNoFilter) rows = rows.filter(function(r) { return String(r[DK.memoNo] || '').toLowerCase() === memoNoFilter; });
   if (paymentStatusFilter) rows = rows.filter(function(r) { return (r[DK.paymentStatus] || 'Not Sold').trim() === paymentStatusFilter; });
 
-  if (sortCol === 'inCt') {
+    if (sortCol === 'inCt') {
     rows.sort(function(a, b) {
       var av = parseFloat(a[DK.inCt]) || 0;
       var bv = parseFloat(b[DK.inCt]) || 0;
+      return sortDesc ? bv - av : av - bv;
+    });
+  } else if (sortCol === 'sr') {
+    rows.sort(function(a, b) {
+      var av = parseInt(a[DK.sr]) || 0;
+      var bv = parseInt(b[DK.sr]) || 0;
       return sortDesc ? bv - av : av - bv;
     });
   }
