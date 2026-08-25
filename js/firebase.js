@@ -39,7 +39,6 @@ var authReadyPromise = new Promise(function(resolve) {
 async function ensureAuth() {
   var user = window.firebase.auth().currentUser;
   if (user) return user;
-  // If not immediately available, wait for the initial state to resolve
   return await authReadyPromise;
 }
 
@@ -122,6 +121,7 @@ async function deleteTrading(id, srNo) {
   await db.collection('trading').doc(id).delete();
   syncToSheet({ 'Sr. No.': srNo, _action: 'delete', _collection: 'trading' });
 }
+
 /* ============ EXPENSES ============ */
 async function fetchExpenses() {
   await ensureAuth();
@@ -162,12 +162,6 @@ async function deleteExpense(id, srNo) {
   syncToSheet({ 'Sr. No.': srNo, _action: 'delete', _collection: 'expenses' });
 }
 
-/* ============ EXPOSE GLOBALLY ============ */
-// Add these to the existing window exports at the bottom:
-window.fetchExpenses = fetchExpenses;
-window.addExpense = addExpense;
-window.updateExpense = updateExpense;
-window.deleteExpense = deleteExpense;
 /* ============ SHEET SYNC ============ */
 function syncToSheet(payload) {
   var url = SHEET_WEBHOOK_URL + '?secret=vinere-sync-2026';
@@ -207,11 +201,15 @@ async function saveSettings(rate) {
 window.db = db;
 window.fetchOrders = fetchOrders;
 window.fetchTrading = fetchTrading;
+window.fetchExpenses = fetchExpenses;
 window.addOrder = addOrder;
 window.updateOrder = updateOrder;
 window.deleteOrder = deleteOrder;
 window.addTrading = addTrading;
 window.updateTrading = updateTrading;
 window.deleteTrading = deleteTrading;
+window.addExpense = addExpense;
+window.updateExpense = updateExpense;
+window.deleteExpense = deleteExpense;
 window.fetchSettings = fetchSettings;
 window.saveSettings = saveSettings;
