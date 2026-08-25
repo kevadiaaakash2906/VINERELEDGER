@@ -160,7 +160,7 @@ window.batchUpdateGoldRate = batchUpdateGoldRate;
 window.loadGoldRate = loadGoldRate;
 
 var currentView = 'orders';
-var sortCol = 'sr';
+var sortCol = null;
 var sortDesc = false;
 var currentPage = 1;
 var PAGE_SIZE = 50;
@@ -463,10 +463,10 @@ async function batchUpdateGoldRate(newRate) {
     return (r[DK.paymentStatus] || 'Not Sold').trim() === 'Not Sold';
   });
   if (!unsold.length) {
-    showToast('Gold rate set to ₹' + newRate.toLocaleString('en-IN'), 'info', 1500);
+    showToast('Gold rate set to \u20b9' + newRate.toLocaleString('en-IN'), 'info', 1500);
     return;
   }
-  showToast('Syncing ' + unsold.length + ' unsold orders to new gold rate…', 'info', 3000);
+  showToast('Syncing ' + unsold.length + ' unsold orders to new gold rate\u2026', 'info', 3000);
   for (var i = 0; i < unsold.length; i++) {
     var r = unsold[i];
     var net = parseFloat(r[DK.netWt]) || 0;
@@ -488,12 +488,15 @@ async function batchUpdateGoldRate(newRate) {
   }
   await doFetchOrders();
   renderAll();
-  showToast('Gold rate ₹' + newRate.toLocaleString('en-IN') + ' synced to ' + unsold.length + ' orders', 'success', 2500);
+  showToast('Gold rate \u20b9' + newRate.toLocaleString('en-IN') + ' synced to ' + unsold.length + ' orders', 'success', 2500);
 }
 
 $('clearFiltersBtn').addEventListener('click', function() {
   $('filterSoldTo').value = '';
   $('filterMemoNo').value = '';
+  $('filterPaymentStatus').value = '';
+  sortCol = null;
+  sortDesc = false;
   currentPage = 1;
   renderAll();
 });
@@ -570,12 +573,25 @@ function initSwipeGestures() {
   }
 }
 
+/* ============ SORT ============ */
+function sortByColumn(col) {
+  if (sortCol === col) {
+    sortDesc = !sortDesc;
+  } else {
+    sortCol = col;
+    sortDesc = false;
+  }
+  currentPage = 1;
+  renderAll();
+}
+
 /* ============ FILTER LOGIC ============ */
 function getFilteredOrders() {
   var rows = [...ORDERS];
   var q = currentSearchQuery;
   var soldToFilter = $('filterSoldTo').value.trim().toLowerCase();
   var memoNoFilter = $('filterMemoNo').value.trim().toLowerCase();
+  var paymentStatusFilter = $('filterPaymentStatus').value;
 
   if (q) {
     rows = rows.filter(function(r) {
@@ -584,6 +600,17 @@ function getFilteredOrders() {
   }
   if (soldToFilter) rows = rows.filter(function(r) { return String(r[DK.soldTo] || '').toLowerCase().includes(soldToFilter); });
   if (memoNoFilter) rows = rows.filter(function(r) { return String(r[DK.memoNo] || '').toLowerCase() === memoNoFilter; });
+  if (paymentStatusFilter) rows = rows.filter(function(r) { return (r[DK.paymentStatus] || 'Not Sold').trim() === paymentStatusFilter; });
+
+  // IN CT sort
+  if (sortCol === 'inCt') {
+    rows.sort(function(a, b) {
+      var av = parseFloat(a[DK.inCt]) || 0;
+      var bv = parseFloat(b[DK.inCt]) || 0;
+      return sortDesc ? bv - av : av - bv;
+    });
+  }
+
   return rows;
 }
 
@@ -597,8 +624,10 @@ function getFilteredTrading() {
   }
   var memoNo = $('filterMemoNo').value.trim().toLowerCase();
   var soldTo = $('filterSoldTo').value.trim().toLowerCase();
+  var paymentStatus = $('filterPaymentStatus').value;
   if (memoNo) rows = rows.filter(function(r) { return String(r[SHEET_KEYS.memoNo] || '').toLowerCase() === memoNo; });
   if (soldTo) rows = rows.filter(function(r) { return String(r[SHEET_KEYS.soldTo] || '').toLowerCase().includes(soldTo); });
+  if (paymentStatus) rows = rows.filter(function(r) { return (r[SHEET_KEYS.paymentStatus] || 'Not Sold').trim() === paymentStatus; });
   return rows;
 }
 
@@ -613,11 +642,13 @@ function getUnifiedResults() {
   var memoNo = $('filterMemoNo').value.trim().toLowerCase();
   var soldTo = $('filterSoldTo').value.trim().toLowerCase();
   var q = currentSearchQuery;
+  var paymentStatus = $('filterPaymentStatus').value;
 
   var orderRows = [...ORDERS].filter(function(r) {
     if (q && !Object.values(r).some(function(v) { return String(v).toLowerCase().includes(q); })) return false;
     if (memoNo && String(r[DK.memoNo] || '').toLowerCase() !== memoNo) return false;
     if (soldTo && !String(r[DK.soldTo] || '').toLowerCase().includes(soldTo)) return false;
+    if (paymentStatus && (r[DK.paymentStatus] || 'Not Sold').trim() !== paymentStatus) return false;
     return true;
   });
   orderRows.forEach(function(r) { r._type = 'order'; r._sortSr = parseInt(r[DK.sr]) || 0; r._sortMemo = String(r[DK.memoNo] || '').toLowerCase(); });
@@ -626,6 +657,7 @@ function getUnifiedResults() {
     if (q && !Object.values(r).some(function(v) { return String(v).toLowerCase().includes(q); })) return false;
     if (memoNo && String(r[SHEET_KEYS.memoNo] || '').toLowerCase() !== memoNo) return false;
     if (soldTo && !String(r[SHEET_KEYS.soldTo] || '').toLowerCase().includes(soldTo)) return false;
+    if (paymentStatus && (r[SHEET_KEYS.paymentStatus] || 'Not Sold').trim() !== paymentStatus) return false;
     return true;
   });
   tradeRows.forEach(function(r) { r._type = 'trade'; r._sortSr = parseInt(r[SHEET_KEYS.sr]) || 0; r._sortMemo = String(r[SHEET_KEYS.memoNo] || '').toLowerCase(); });
@@ -661,7 +693,7 @@ function renderUnifiedView() {
   if (memoNo) parts.push('Memo <strong>' + escapeHtml(memoNo) + '</strong>');
   if (soldTo) parts.push('Buyer <strong>' + escapeHtml(soldTo) + '</strong>');
   banner.innerHTML = 'Combined results for ' + parts.join(' + ') +
-    '<span style="margin-left:12px;font-size:12px;opacity:0.8;">Orders are blue · Trades are green</span>' +
+    '<span style="margin-left:12px;font-size:12px;opacity:0.8;">Orders are blue \u00b7 Trades are green</span>' +
     '<button class="btn text small" style="margin-left:auto;" onclick="$(\'filterMemoNo\').value=\'\';$(\'filterSoldTo\').value=\'\';window.currentPage=1;renderAll();">Show tab view</button>';
   banner.style.display = 'flex';
 
@@ -702,7 +734,7 @@ function renderUnifiedPagination() {
   $('paginationBar').innerHTML =
     '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window.changeUnifiedPage(1)">First</button>' +
     '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window.changeUnifiedPage(' + (currentPage - 1) + ')">Prev</button>' +
-    '<span class="page-info">Page ' + currentPage + ' of ' + totalPages + ' · ' + results.length + ' results</span>' +
+    '<span class="page-info">Page ' + currentPage + ' of ' + totalPages + ' \u00b7 ' + results.length + ' results</span>' +
     '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeUnifiedPage(' + (currentPage + 1) + ')">Next</button>' +
     '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeUnifiedPage(' + totalPages + ')">Last</button>';
   $('tradePaginationBar').style.display = 'none';
@@ -738,3 +770,4 @@ window.loadGoldRate = loadGoldRate;
 window.isUnifiedMode = isUnifiedMode;
 window.getUnifiedResults = getUnifiedResults;
 window.renderUnifiedView = renderUnifiedView;
+window.sortByColumn = sortByColumn;
