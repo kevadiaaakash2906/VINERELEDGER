@@ -517,7 +517,8 @@ body {
 }
 
 /* Delete button */
-#deleteBtn, #deleteTradeBtn {
+/* AFTER */
+#deleteBtn, #deleteTradeBtn, #deleteExpenseBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -534,17 +535,16 @@ body {
   transition: all var(--duration-fast) var(--ease-standard);
 }
 
-#deleteBtn:hover, #deleteTradeBtn:hover {
+#deleteBtn:hover, #deleteTradeBtn:hover, #deleteExpenseBtn:hover {
   background: var(--md-error-container);
 }
 
-#deleteBtn.deleting, #deleteTradeBtn.deleting {
+#deleteBtn.deleting, #deleteTradeBtn.deleting, #deleteExpenseBtn.deleting {
   background: var(--md-error);
   color: var(--md-on-primary);
   border-color: var(--md-error);
   animation: deletePulse 3s linear;
 }
-
 @keyframes deletePulse {
   from { background: var(--md-error-container); }
   to   { background: var(--md-error); }
