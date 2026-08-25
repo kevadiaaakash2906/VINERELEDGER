@@ -15,6 +15,7 @@ window.openTradePanel = function() {
 
   $('tradeOverlay').style.display = 'block';
   $('tradePanel').classList.add('open');
+  document.body.classList.add('panel-open');
 };
 
 window.openEditTrade = function(id) {
@@ -50,6 +51,7 @@ window.openEditTrade = function(id) {
 
   $('tradeOverlay').style.display = 'block';
   $('tradePanel').classList.add('open');
+  document.body.classList.add('panel-open');
 };
 
 function resetTradePanel() {
@@ -68,6 +70,7 @@ function closeTradePanel() {
   $('tradePanel').classList.remove('open');
   $('tradeOverlay').style.display = 'none';
   editingTradeId = null;
+  document.body.classList.remove('panel-open');
 }
 
 /* ============ LIVE PREVIEW ============ */
