@@ -1909,6 +1909,22 @@ body.customer-role .trade-card:hover {
 #memoSummary .computed-row:last-child {
   border-bottom: none;
 }
+/* Sortable column headers */
+#ordersTable th.sortable,
+#tradingTable th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+#ordersTable th.sortable:hover,
+#tradingTable th.sortable:hover {
+  color: var(--md-primary);
+}
+.sort-icon {
+  font-size: 11px;
+  margin-left: 3px;
+  opacity: 0.65;
+}
 /* ============================================
    UNIFIED VIEW (Orders + Trading)
    ============================================ */
