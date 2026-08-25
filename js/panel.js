@@ -5,6 +5,7 @@
 var editingId = null;
 var currentInstallments = [];
 var readOnly = false;
+var panelGoldRate = null;   // snapshot for this editing session — never changes while panel is open
 
 /* ============ MEMO HELPERS ============ */
 function getMemoOrders(memoNo) {
@@ -29,7 +30,6 @@ function getMemoBuyer(memoNo) {
   orders.forEach(function(o) { if (o[DK.soldTo]) buyers.push(o[DK.soldTo]); });
   trades.forEach(function(t) { if (t[SHEET_KEYS.soldTo]) buyers.push(t[SHEET_KEYS.soldTo]); });
   if (!buyers.length) return '';
-  // Return most common buyer name
   var counts = {};
   var max = 0, top = buyers[0];
   buyers.forEach(function(b) {
@@ -49,10 +49,7 @@ function getAggregatedPaymentLog(memoNo) {
     try { log = JSON.parse(o[DK.paymentLog] || '[]'); } catch(e) { log = []; }
     log.forEach(function(p) {
       var key = (p.amount || '0') + '|' + (p.date || '');
-      if (!seen[key]) {
-        seen[key] = true;
-        allPayments.push(p);
-      }
+      if (!seen[key]) { seen[key] = true; allPayments.push(p); }
     });
   });
   trades.forEach(function(t) {
@@ -60,10 +57,7 @@ function getAggregatedPaymentLog(memoNo) {
     try { log = JSON.parse(t[SHEET_KEYS.paymentLog] || '[]'); } catch(e) { log = []; }
     log.forEach(function(p) {
       var key = (p.amount || '0') + '|' + (p.date || '');
-      if (!seen[key]) {
-        seen[key] = true;
-        allPayments.push(p);
-      }
+      if (!seen[key]) { seen[key] = true; allPayments.push(p); }
     });
   });
   return allPayments.sort(function(a, b) {
@@ -113,15 +107,28 @@ window.openOrderPanel = function(id) {
    'f_soldTo','f_salePrice','f_dateSold'].forEach(function(fid) { $(fid).value = ''; });
   $('f_multiplier').value = '0.595';
   $('f_lCharges').value = '900';
+  if ($('f_flatLabor')) $('f_flatLabor').checked = false;
 
   currentInstallments = [];
   renderInstallments();
-  updatePreview();
 
   $('saveMsg').textContent = '';
   $('saveMsg').style.color = '';
-
   document.querySelectorAll('.field-error').forEach(function(el) { el.textContent = ''; });
+
+  // ── SNAPSHOT GOLD RATE FOR THIS EDITING SESSION ──
+  if (editingId) {
+    var order = ORDERS.find(function(r) { return r._id === editingId; });
+    if (order && order['Gold Rate']) {
+      var stored = parseFloat(order['Gold Rate']);
+      panelGoldRate = (!isNaN(stored) && stored > 0) ? stored : (window.GOLD_RATE || 16000);
+    } else {
+      panelGoldRate = window.GOLD_RATE || 16000;
+    }
+  } else {
+    panelGoldRate = window.GOLD_RATE || 16000;
+  }
+  // ── END SNAPSHOT ──
 
   if (id) {
     var order = ORDERS.find(function(r) { return r._id === id; });
@@ -139,10 +146,11 @@ window.openOrderPanel = function(id) {
     $('f_multiplier').value = order[DK.multiplier] || '0.595';
     $('f_diamAmount').value = order[DK.diamAmount] || '';
     $('f_lCharges').value = order[DK.lCharges] || '900';
+    if ($('f_flatLabor')) {
+      $('f_flatLabor').checked = order._flatLabor === true || order._flatLabor === 'true';
+    }
     $('f_memoNo').value = order[DK.memoNo] || '';
     $('f_soldTo').value = order[DK.soldTo] || '';
-    $('f_salePrice').value = order[DK.salePrice] || '';
-    // Auto-fill buyer from memo siblings if current order has no buyer
     if (!order[DK.soldTo]) {
       var memoNo = order[DK.memoNo];
       if (memoNo) {
@@ -150,9 +158,9 @@ window.openOrderPanel = function(id) {
         if (buyer) $('f_soldTo').value = buyer;
       }
     }
+    $('f_salePrice').value = order[DK.salePrice] || '';
     $('f_dateSold').value = order[DK.dateSold] || '';
 
-    // Load aggregated payment log for memo, or own log if no memo
     var memoNo = order[DK.memoNo];
     if (memoNo) {
       currentInstallments = getAggregatedPaymentLog(memoNo);
@@ -193,6 +201,7 @@ function closePanel() {
   $('panel').classList.remove('open');
   $('overlay').style.display = 'none';
   editingId = null;
+  panelGoldRate = null;   // clear snapshot
   document.body.classList.remove('panel-open');
 }
 
@@ -200,15 +209,14 @@ function closePanel() {
 ['f_netWt','f_multiplier','f_lCharges','f_diamAmount','f_salePrice','f_memoNo'].forEach(function(id) {
   $(id).addEventListener('input', updatePreview);
 });
+if ($('f_flatLabor')) $('f_flatLabor').addEventListener('change', updatePreview);
 
-// Load memo payments when typing memoNo on new orders
 $('f_memoNo').addEventListener('input', function() {
   var memoNo = this.value.trim().toUpperCase();
   if (memoNo && !editingId && !currentInstallments.length) {
     currentInstallments = getAggregatedPaymentLog(memoNo);
     renderInstallments();
   }
-  // Auto-fill buyer from existing memo orders
   if (memoNo && !$('f_soldTo').value.trim()) {
     var buyer = getMemoBuyer(memoNo);
     if (buyer) $('f_soldTo').value = buyer;
@@ -225,7 +233,11 @@ function updatePreview() {
   var salePrice = parseFloat($('f_salePrice').value) || 0;
 
   var pgWt = netWt * multiplier;
-  var goldRate = window.GOLD_RATE || 16000;
+
+  // ── USE SNAPPED GOLD RATE (never the live rate while panel is open) ──
+  var goldRate = panelGoldRate !== null ? panelGoldRate : (window.GOLD_RATE || 16000);
+  // ── END ──
+
   var goldAmt = pgWt * goldRate;
   var isFlatLabor = $('f_flatLabor') && $('f_flatLabor').checked;
   var laborAmt = isFlatLabor ? lCharges : netWt * lCharges;
@@ -251,6 +263,21 @@ function updatePreview() {
   $('prev_balanceDue').textContent = salePrice ? '$' + fmtMoney(balance) : '—';
   $('prev_paymentStatus').textContent = status;
   updateMemoSummary();
+
+  // Visual indicator of which rate is being used
+  var rateIndicator = $('rateIndicator');
+  if (!rateIndicator) {
+    rateIndicator = document.createElement('div');
+    rateIndicator.id = 'rateIndicator';
+    rateIndicator.style.cssText = 'font-size:11px;color:var(--md-on-surface-variant);margin-top:4px;text-align:right;';
+    var note = document.querySelector('.computed-note');
+    if (note) note.parentNode.insertBefore(rateIndicator, note);
+  }
+  if (rateIndicator) {
+    rateIndicator.textContent = editingId
+      ? 'Using stored rate: ₹' + goldRate.toLocaleString('en-IN') + '/g'
+      : 'Using live rate: ₹' + goldRate.toLocaleString('en-IN') + '/g';
+  }
 }
 
 /* ============ MEMO SUMMARY ============ */
@@ -268,7 +295,6 @@ function updateMemoSummary() {
   var totalBill = currentSalePrice;
   var itemCount = 1;
 
-  // ── Collect Sr. Nos ──
   var orderSrs = [];
   if (editingId) {
     var curr = ORDERS.find(function(o) { return o._id === editingId; });
@@ -292,7 +318,6 @@ function updateMemoSummary() {
   var balance = totalBill - totalPaid;
   var status = totalBill === 0 ? 'Not Sold' : (totalPaid >= totalBill ? 'Paid' : (totalPaid > 0 ? 'Partial' : 'Unpaid'));
 
-  // ── Build Sr. No. HTML ──
   var srHtml = '';
   if (orderSrs.length) {
     srHtml += '<div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--md-outline-variant);">' +
@@ -381,7 +406,6 @@ $('saveBtn').addEventListener('click', async function() {
   var salePrice = parseFloat($('f_salePrice').value) || 0;
   var totalPaid = currentInstallments.reduce(function(s, i) { return s + (parseFloat(i.amount) || 0); }, 0);
 
-  // For memo orders, allow payments up to memo total bill
   var memoNo = $('f_memoNo').value.trim().toUpperCase();
   var maxAllowed = salePrice;
   if (memoNo) {
@@ -408,7 +432,11 @@ $('saveBtn').addEventListener('click', async function() {
   var lCharge = parseFloat($('f_lCharges').value) || 900;
   var diam = parseFloat($('f_diamAmount').value) || 0;
   var pgWt = net * mult;
-  var goldRate = window.GOLD_RATE || 16000;
+
+  // ── USE SNAPPED GOLD RATE ON SAVE ──
+  var goldRate = panelGoldRate !== null ? panelGoldRate : (window.GOLD_RATE || 16000);
+  // ── END ──
+
   var goldAmt = pgWt * goldRate;
   var isFlatLaborSave = $('f_flatLabor') && $('f_flatLabor').checked;
   var laborAmt = isFlatLaborSave ? lCharge : net * lCharge;
@@ -439,7 +467,7 @@ $('saveBtn').addEventListener('click', async function() {
   data[DK.laborAmt] = Math.round(laborAmt).toString();
   data[DK.subTotal] = Math.round(subTotal).toString();
   data[DK.usd] = usd.toFixed(2);
-  data['Gold Rate'] = (window.GOLD_RATE || 16000).toString();
+  data['Gold Rate'] = goldRate.toString();
   data[DK.memoNo] = $('f_memoNo').value.trim().toUpperCase();
   data[DK.soldTo] = $('f_soldTo').value.trim();
   data[DK.salePrice] = salePrice ? salePrice.toString() : '';
@@ -448,6 +476,7 @@ $('saveBtn').addEventListener('click', async function() {
   data[DK.balanceDue] = (salePrice - totalPaid).toString();
   data[DK.paymentStatus] = status;
   data[DK.paymentLog] = JSON.stringify(currentInstallments);
+  data._flatLabor = isFlatLaborSave;
 
   try {
     if (editingId) {
@@ -455,7 +484,6 @@ $('saveBtn').addEventListener('click', async function() {
       data[DK.sr] = existing[DK.sr];
       await window.updateOrder(editingId, data);
 
-      // Sync memo payments to sibling orders
       var memoNo = data[DK.memoNo];
       if (memoNo) {
         await syncMemoPayments(memoNo, currentInstallments, editingId);
@@ -525,7 +553,6 @@ async function renumberOrdersAfterDelete(deletedSr) {
     var oldId = r._id;
     var newId = 'order_' + newSr;
 
-    // Update in-memory immediately
     r[DK.sr] = newSr;
     r._id = newId;
 
@@ -534,9 +561,7 @@ async function renumberOrdersAfterDelete(deletedSr) {
     data[DK.sr] = newSr;
 
     try {
-      // Create new doc with correct ID
       await window.addOrder(data, newId);
-      // Delete old doc
       await window.deleteOrder(oldId, oldSr);
     } catch(e) {
       console.error('Renumber failed for', oldId, '→', newId, e);
@@ -551,8 +576,6 @@ async function doDeleteOrder() {
 
   try {
     await window.deleteOrder(editingId, srNo);
-
-    // Remove deleted item from in-memory array immediately
     ORDERS = ORDERS.filter(function(r) { return r._id !== editingId; });
 
     if (srNo) {
