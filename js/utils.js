@@ -83,6 +83,15 @@ function dismissToast(toast) {
   });
 }
 
+/* ============ HAPTIC FEEDBACK (mobile) ============ */
+function haptic(type) {
+  if (navigator.vibrate) {
+    if (type === 'success') navigator.vibrate(40);
+    else if (type === 'error') navigator.vibrate([50, 50, 50]);
+    else if (type === 'light') navigator.vibrate(20);
+  }
+}
+
 /* ============ EXPOSE GLOBALLY ============ */
 window.$ = $;
 window.fmtDate = fmtDate;
@@ -92,3 +101,4 @@ window.escapeHtml = escapeHtml;
 window.highlightText = highlightText;
 window.showToast = showToast;
 window.dismissToast = dismissToast;
+window.haptic = haptic;
