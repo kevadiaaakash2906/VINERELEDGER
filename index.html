@@ -62,6 +62,14 @@
   <span class="rate-note" id="rateNote"></span>
 
   <div class="filter-right">
+ <!-- inside .filter-right, before filterSoldTo -->
+<select id="filterPaymentStatus" class="filter-pill" style="width:auto;min-width:130px;">
+  <option value="">All Status</option>
+  <option value="Not Sold">Not Sold</option>
+  <option value="Unpaid">Unpaid</option>
+  <option value="Partial">Partial</option>
+  <option value="Paid">Paid</option>
+</select>
     <input type="text" id="filterSoldTo" class="filter-pill" placeholder="Sold to…" autocomplete="off">
     <input type="text" id="filterMemoNo" class="filter-pill" placeholder="Memo no…" autocomplete="off">
     <button class="btn secondary small" id="clearFiltersBtn">Clear</button>
