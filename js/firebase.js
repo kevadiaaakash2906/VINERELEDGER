@@ -122,7 +122,52 @@ async function deleteTrading(id, srNo) {
   await db.collection('trading').doc(id).delete();
   syncToSheet({ 'Sr. No.': srNo, _action: 'delete', _collection: 'trading' });
 }
+/* ============ EXPENSES ============ */
+async function fetchExpenses() {
+  await ensureAuth();
+  var snap = await db.collection('expenses').get();
+  var rows = snap.docs.map(function(d) { return { _id: d.id, ...d.data() }; });
+  rows.sort(function(a, b) {
+    return (parseInt(a['Sr. No.']) || 0) - (parseInt(b['Sr. No.']) || 0);
+  });
+  return { rows: rows };
+}
 
+async function addExpense(data, customId) {
+  await ensureAuth();
+  var sr = data['Sr. No.'] || '0';
+  var id = customId || ('expense_' + sr);
+  var ref = db.collection('expenses').doc(id);
+  await ref.set({
+    ...data,
+    createdAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+  });
+  syncToSheet({ ...data, _collection: 'expenses', _id: id });
+  return id;
+}
+
+async function updateExpense(id, data) {
+  await ensureAuth();
+  await db.collection('expenses').doc(id).set({
+    ...data,
+    updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+  syncToSheet({ ...data, _collection: 'expenses' });
+}
+
+async function deleteExpense(id, srNo) {
+  await ensureAuth();
+  await db.collection('expenses').doc(id).delete();
+  syncToSheet({ 'Sr. No.': srNo, _action: 'delete', _collection: 'expenses' });
+}
+
+/* ============ EXPOSE GLOBALLY ============ */
+// Add these to the existing window exports at the bottom:
+window.fetchExpenses = fetchExpenses;
+window.addExpense = addExpense;
+window.updateExpense = updateExpense;
+window.deleteExpense = deleteExpense;
 /* ============ SHEET SYNC ============ */
 function syncToSheet(payload) {
   var url = SHEET_WEBHOOK_URL + '?secret=vinere-sync-2026';
