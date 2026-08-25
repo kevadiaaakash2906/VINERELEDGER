@@ -729,7 +729,76 @@ main {
 #tradingTable tbody tr:active td {
   background: rgba(26,115,232,0.06);
 }
+/* Expenses table */
+#expensesTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+  min-width: 900px;
+}
 
+#expensesTable thead {
+  background: var(--md-surface-variant);
+}
+
+#expensesTable th {
+  padding: 14px 18px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--md-on-surface-variant);
+  text-align: left;
+  border-bottom: 1px solid var(--md-outline-variant);
+  white-space: nowrap;
+}
+
+#expensesTable th.num,
+#expensesTable td.num {
+  text-align: right;
+}
+
+#expensesTable tbody td {
+  padding: 16px 18px;
+  color: var(--md-on-surface);
+  border-bottom: 1px solid var(--md-outline-variant);
+  transition: background var(--duration-fast) var(--ease-standard);
+  white-space: nowrap;
+}
+
+#expensesTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+#expensesTable tbody tr:hover td {
+  background: rgba(26,115,232,0.03);
+  cursor: pointer;
+}
+
+#expensesTable tbody tr:active td {
+  background: rgba(26,115,232,0.06);
+}
+
+/* Sticky Sr. column for expenses */
+#expensesTable th:first-child,
+#expensesTable td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--md-surface);
+  z-index: 2;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.04);
+}
+
+#expensesTable thead th:first-child {
+  background: var(--md-surface-variant);
+  z-index: 3;
+}
+
+#expensesTable tbody tr:hover td:first-child {
+  background: rgba(26,115,232,0.03);
+}
 /* Status badges */
 .status-badge {
   display: inline-flex;
@@ -2059,8 +2128,10 @@ body.customer-role .trade-card:hover {
 }
 #ordersTable td.num,
 #tradingTable td.num,
+#expensesTable td.num,
 #ordersTable th.num,
-#tradingTable th.num {
+#tradingTable th.num,
+#expensesTable th.num {
   text-align: right;
 }
 /* Expense cards */
