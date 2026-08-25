@@ -594,9 +594,109 @@ function renderUnifiedCards() {
     });
   });
 }
+function renderExpenseTable() {
+  var tbody = $('expenseTbody');
+  var filtered = getFilteredExpenses();
+  var start = (currentPage - 1) * PAGE_SIZE;
+  var pageRows = filtered.slice(start, start + PAGE_SIZE);
+  var K = EXPENSE_KEYS;
+  var q = window.currentSearchQuery || '';
+
+  if (!pageRows.length) {
+    var msg = window.currentSearchQuery
+      ? 'No expenses match "' + escapeHtml(window.currentSearchQuery) + '"'
+      : 'No expenses found';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-dim)">' + msg + '</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = pageRows.map(function(r) {
+    var amount = parseFloat(r[K.amount]) || 0;
+    var reimbursed = String(r[K.reimbursed] || '').toLowerCase() === 'yes';
+    var statusClass = reimbursed ? 'status-paid' : 'status-unpaid';
+    var statusText = reimbursed ? 'Reimbursed' : 'Pending';
+
+    return '<tr data-id="' + r._id + '" style="cursor:pointer">' +
+      '<td class="num">' + r[K.sr] + '</td>' +
+      '<td>' + fmtDate(r[K.date]) + '</td>' +
+      '<td><span class="type-badge" style="background:var(--md-surface-variant);color:var(--md-on-surface);">' + escapeHtml(r[K.category] || 'Misc') + '</span></td>' +
+      '<td>' + highlightText(r[K.description] || '', q) + '</td>' +
+      '<td class="num">$' + fmtMoney(amount) + '</td>' +
+      '<td>' + highlightText(r[K.seller] || '', q) + '</td>' +
+      '<td><span class="status-badge ' + statusClass + '">' + statusText + '</span></td>' +
+      '<td>' + (r[K.reimbursementDate] ? fmtDate(r[K.reimbursementDate]) : '\u2014') + '</td>' +
+      '</tr>';
+  }).join('');
+
+  tbody.querySelectorAll('tr[data-id]').forEach(function(tr) {
+    tr.addEventListener('click', function() {
+      if (window.openExpensePanel) window.openExpensePanel(tr.dataset.id);
+    });
+  });
+
+  renderExpenseCards(pageRows);
+}
+
+function renderExpenseCards(rows) {
+  var container = $('expenseCardList');
+  var K = EXPENSE_KEYS;
+  var q = window.currentSearchQuery || '';
+
+  if (!rows.length) {
+    var msg = q ? 'No expenses match "' + escapeHtml(q) + '"' : 'No expenses found';
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:14px;">' + msg + '</div>';
+    return;
+  }
+
+  container.innerHTML = rows.map(function(r) {
+    var amount = parseFloat(r[K.amount]) || 0;
+    var reimbursed = String(r[K.reimbursed] || '').toLowerCase() === 'yes';
+    var statusClass = reimbursed ? 'status-paid' : 'status-unpaid';
+    var statusText = reimbursed ? 'Reimbursed' : 'Pending';
+
+    return '<div class="order-card expense-card" data-id="' + r._id + '">' +
+      '<div class="card-header">' +
+      '<div class="card-header-left">' +
+      '<span class="card-title">' + escapeHtml(r[K.category] || 'Misc') + '</span>' +
+      '<span class="card-meta">' + escapeHtml(r[K.description] || '') + ' \u00b7 ' + fmtDate(r[K.date]) + '</span>' +
+      '</div>' +
+      '<div class="card-header-right">' +
+      '<span class="card-sr-badge">#' + r[K.sr] + '</span>' +
+      '<span class="card-value">$' + fmtMoney(amount) + '</span>' +
+      '<span class="status-badge ' + statusClass + '">' + statusText + '</span>' +
+      '</div>' +
+      '</div>' +
+      '</div>';
+  }).join('');
+
+  container.querySelectorAll('.expense-card').forEach(function(card) {
+    card.addEventListener('click', function() {
+      if (ROLE === 'customer') {
+        showToast('View only — you do not have permission to edit expenses', 'warning');
+        return;
+      }
+      if (window.openExpensePanel) window.openExpensePanel(card.dataset.id);
+    });
+  });
+}
+
+function renderExpensePagination() {
+  var filtered = getFilteredExpenses();
+  var totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
+  $('expensePaginationBar').innerHTML =
+    '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window.changeExpensePage(1)">First</button>' +
+    '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window.changeExpensePage(' + (currentPage - 1) + ')">Prev</button>' +
+    '<span class="page-info">Page ' + currentPage + ' of ' + totalPages + '</span>' +
+    '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeExpensePage(' + (currentPage + 1) + ')">Next</button>' +
+    '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeExpensePage(' + totalPages + ')">Last</button>';
+}
+
 
 /* ============ EXPOSE GLOBALLY ============ */
 window.renderTable = renderTable;
 window.renderTradeTable = renderTradeTable;
 window.renderUnifiedTable = renderUnifiedTable;
 window.renderUnifiedCards = renderUnifiedCards;
+window.renderExpenseTable = renderExpenseTable;
+window.renderExpenseCards = renderExpenseCards;
+window.renderExpensePagination = renderExpensePagination;
