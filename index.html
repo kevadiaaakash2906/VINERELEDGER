@@ -132,13 +132,13 @@
 
         <table id="expensesTable" style="display:none;">
           <colgroup>
-            <col style="width:5%"><col style="width:10%"><col style="width:12%">
-            <col style="width:28%"><col style="width:10%"><col style="width:12%">
-            <col style="width:10%"><col style="width:13%">
+            <col style="width:6%"><col style="width:12%"><col style="width:14%">
+            <col style="width:32%"><col style="width:12%"><col style="width:14%">
+            <col style="width:10%">
           </colgroup>
           <thead><tr>
             <th class="num">Sr.</th><th>Date</th><th>Category</th><th>Description</th>
-            <th class="num">Amount</th><th>Seller</th><th>Status</th><th>Reimb. Date</th>
+            <th class="num">Amount</th><th>Seller</th><th>Notes</th>
           </tr></thead>
           <tbody id="expenseTbody">
             <tr class="skeleton-row"><td colspan="8"><div class="skeleton-cell" style="width:100%"></div></td></tr>
@@ -299,13 +299,6 @@
       <div class="field"><label>Amount ($) *</label><input id="e_amount" type="number" step="0.01" placeholder="0.00"><div class="field-error" id="err_e_amount"></div></div>
       <div class="field"><label>Seller</label><input id="e_seller" placeholder="e.g. Aakash"></div>
     </div>
-    <div class="field" style="display:flex;align-items:center;gap:12px;margin:12px 0;">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;text-transform:none;letter-spacing:0;color:var(--text-dim);font-weight:400;">
-        <input type="checkbox" id="e_reimbursed" style="width:18px;height:18px;cursor:pointer;">
-        Reimbursed
-      </label>
-    </div>
-    <div class="field"><label>Reimbursement Date</label><input id="e_reimbursementDate" type="date"></div>
     <div class="field"><label>Notes</label><input id="e_notes" placeholder="Any notes…"></div>
     <div id="expenseSaveMsg"></div>
   </div>
