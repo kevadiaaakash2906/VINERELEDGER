@@ -320,6 +320,11 @@ function switchView(view) {
   currentView = view;
   currentPage = 1;
 
+  // Close all open panels
+  if (typeof closePanel === 'function') closePanel();
+  if (typeof closeTradePanel === 'function') closeTradePanel();
+  if (typeof closeExpensePanel === 'function') closeExpensePanel();
+
   $('ordersViewBtn').classList.toggle('active', view === 'orders');
   $('tradingViewBtn').classList.toggle('active', view === 'trading');
   $('expensesViewBtn').classList.toggle('active', view === 'expenses');
