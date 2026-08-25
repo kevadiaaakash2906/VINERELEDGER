@@ -35,9 +35,11 @@ window.showApp = function(role) {
   var newOrderBtn = document.getElementById('newOrderBtn');
   var receivePaymentBtn = document.getElementById('receivePaymentBtn');
   var newTradeBtn = document.getElementById('newTradeBtn');
+  var newExpenseBtn = document.getElementById('newExpenseBtn');
   if (newOrderBtn) newOrderBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
   if (receivePaymentBtn) receivePaymentBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
   if (newTradeBtn) newTradeBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
+  if (newExpenseBtn) newExpenseBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
 
   document.body.classList.remove('staff-role', 'seller-role', 'customer-role');
   if (isStaff) document.body.classList.add('staff-role');
@@ -150,15 +152,16 @@ var SHEET_KEYS = {
   memoNo: 'Memo No.'
 };
 
-/* ============ GLOBAL STATE ============ */
-var ORDERS = [];
-var TRADING = [];
-var EXPENSES = [];
 var EXPENSE_KEYS = {
   sr: 'Sr. No.', date: 'Date', category: 'Category', description: 'Description',
   amount: 'Amount', seller: 'Seller', reimbursed: 'Reimbursed',
   reimbursementDate: 'Reimbursement Date', notes: 'Notes'
 };
+
+/* ============ GLOBAL STATE ============ */
+var ORDERS = [];
+var TRADING = [];
+var EXPENSES = [];
 var currentSearchQuery = '';
 var GOLD_RATE = 16000;
 window.GOLD_RATE = GOLD_RATE;
@@ -175,7 +178,7 @@ var PAGE_SIZE = 50;
 async function initApp() {
   await doFetchOrders();
   await doFetchTrading();
-  await doFetchExpenses();        
+  await doFetchExpenses();
   await loadGoldRate();
   renderAll();
   initSwipeGestures();
@@ -216,7 +219,7 @@ async function loadGoldRate() {
   if (input) input.value = 16000;
 }
 
-/* ============ FETCH ORDERS ============ */
+/* ============ FETCH ============ */
 function normalizeRow(row) {
   var normalized = {};
   for (var key in row) {
@@ -237,7 +240,6 @@ async function doFetchOrders() {
   }
 }
 
-/* ============ FETCH TRADING ============ */
 async function doFetchTrading() {
   try {
     var result = await window.fetchTrading();
@@ -247,6 +249,7 @@ async function doFetchTrading() {
     showToast('Failed to load trading', 'error');
   }
 }
+
 async function doFetchExpenses() {
   try {
     var result = await window.fetchExpenses();
@@ -290,6 +293,7 @@ function renderAll() {
   equalizeColumnWidths();
   updateSearchUI();
 }
+
 /* ============ COLUMN WIDTHS ============ */
 function equalizeColumnWidths() {
   var table = document.getElementById('ordersTable');
@@ -310,91 +314,77 @@ function equalizeColumnWidths() {
 $('ordersViewBtn').addEventListener('click', function() { switchView('orders'); });
 $('tradingViewBtn').addEventListener('click', function() { switchView('trading'); });
 $('expensesViewBtn').addEventListener('click', function() { switchView('expenses'); });
-$('newExpenseBtn').addEventListener('click', function() {
-  if (window.openExpensePanel) window.openExpensePanel();
-});
 
 function switchView(view) {
   if (view === currentView) return;
-
-  var isOrders = view === 'orders';
-  var oldView = currentView;
   currentView = view;
   currentPage = 1;
 
-  $('ordersViewBtn').classList.toggle('active', isOrders);
-  $('tradingViewBtn').classList.toggle('active', !isOrders);
+  $('ordersViewBtn').classList.toggle('active', view === 'orders');
+  $('tradingViewBtn').classList.toggle('active', view === 'trading');
+  $('expensesViewBtn').classList.toggle('active', view === 'expenses');
 
-  var oldTable = isOrders ? $('tradingTable') : $('ordersTable');
-  var oldKpi = isOrders ? $('tradeKpiGrid') : $('kpiGrid');
-  var oldPag = isOrders ? $('tradePaginationBar') : $('paginationBar');
-  var oldCards = isOrders ? $('tradeCardList') : $('cardList');
+  // Hide all tables
+  ['ordersTable','tradingTable','expensesTable'].forEach(function(id) {
+    var el = $(id); if (el) el.style.display = 'none';
+  });
+  // Hide all KPI grids
+  ['kpiGrid','tradeKpiGrid','expenseKpiGrid'].forEach(function(id) {
+    var el = $(id); if (el) el.style.display = 'none';
+  });
+  // Hide all pagination bars
+  ['paginationBar','tradePaginationBar','expensePaginationBar'].forEach(function(id) {
+    var el = $(id); if (el) el.style.display = 'none';
+  });
+  // Hide all card lists
+  ['cardList','tradeCardList','expenseCardList'].forEach(function(id) {
+    var el = $(id); if (el) el.classList.remove('active');
+  });
+  // Hide all action buttons
+  ['newOrderBtn','newTradeBtn','newExpenseBtn'].forEach(function(id) {
+    var el = $(id); if (el) el.style.display = 'none';
+  });
 
-  if (oldTable) oldTable.classList.add('switching-out');
-  if (oldKpi) oldKpi.classList.add('switching-out');
-  if (oldPag) oldPag.classList.add('switching-out');
-  if (oldCards) oldCards.classList.add('switching-out');
+  // Show selected view
+  if (view === 'orders') {
+    $('ordersTable').style.display = 'table';
+    $('kpiGrid').style.display = 'grid';
+    $('paginationBar').style.display = 'flex';
+    $('cardList').classList.add('active');
+    $('newOrderBtn').style.display = (ROLE !== 'customer') ? 'inline-flex' : 'none';
+  } else if (view === 'trading') {
+    $('tradingTable').style.display = 'table';
+    $('tradeKpiGrid').style.display = 'grid';
+    $('tradePaginationBar').style.display = 'flex';
+    $('tradeCardList').classList.add('active');
+    $('newTradeBtn').style.display = (ROLE !== 'customer') ? 'inline-flex' : 'none';
+  } else if (view === 'expenses') {
+    $('expensesTable').style.display = 'table';
+    $('expenseKpiGrid').style.display = 'grid';
+    $('expensePaginationBar').style.display = 'flex';
+    $('expenseCardList').classList.add('active');
+    $('newExpenseBtn').style.display = (ROLE !== 'customer') ? 'inline-flex' : 'none';
+  }
 
-  setTimeout(function() {
-    if (oldTable) {
-      oldTable.style.display = 'none';
-      oldTable.classList.remove('switching-out');
-    }
-    if (oldKpi) oldKpi.style.display = 'none';
-    if (oldPag) oldPag.style.display = 'none';
-    if (oldCards) {
-      oldCards.classList.remove('active');
-      oldCards.classList.remove('switching-out');
-    }
+  // Filter bar visibility
+  var goldWrap = $('goldRateInput');
+  if (goldWrap && goldWrap.parentElement) {
+    goldWrap.parentElement.style.display = (view === 'orders') ? 'flex' : 'none';
+  }
+  var rateNote = $('rateNote');
+  if (rateNote) rateNote.style.display = (view === 'orders') ? '' : 'none';
 
-    $('ordersTable').style.display = isOrders ? 'table' : 'none';
-    $('tradingTable').style.display = isOrders ? 'none' : 'table';
-    $('kpiGrid').style.display = isOrders ? 'grid' : 'none';
-    $('tradeKpiGrid').style.display = isOrders ? 'none' : 'grid';
-    $('paginationBar').style.display = isOrders ? 'flex' : 'none';
-    $('tradePaginationBar').style.display = isOrders ? 'none' : 'flex';
-    $('cardList').classList.toggle('active', isOrders);
-    $('tradeCardList').classList.toggle('active', !isOrders);
-    $('newOrderBtn').style.display = (isOrders && ROLE !== 'customer') ? 'inline-flex' : 'none';
-    $('newTradeBtn').style.display = (!isOrders && ROLE !== 'customer') ? 'inline-flex' : 'none';
-    $('headerStats').style.display = 'flex';
+  ['filterSoldTo','filterMemoNo','filterPaymentStatus'].forEach(function(id) {
+    var el = $(id); if (el) el.style.display = (view === 'expenses') ? 'none' : '';
+  });
+  ['filterExpenseCategory','filterExpenseSeller'].forEach(function(id) {
+    var el = $(id); if (el) el.style.display = (view === 'expenses') ? '' : 'none';
+  });
 
-    var newTable = isOrders ? $('ordersTable') : $('tradingTable');
-    var newKpi = isOrders ? $('kpiGrid') : $('tradeKpiGrid');
-    var newPag = isOrders ? $('paginationBar') : $('tradePaginationBar');
-    var newCards = isOrders ? $('cardList') : $('tradeCardList');
+  $('receivePaymentBtn').style.display = (ROLE !== 'customer' && view !== 'expenses') ? 'inline-flex' : 'none';
+  $('headerStats').style.display = 'flex';
 
-    if (newTable) {
-      newTable.classList.add('switching-in');
-      requestAnimationFrame(function() {
-        newTable.classList.remove('switching-in');
-        newTable.classList.add('active');
-      });
-    }
-    if (newKpi) {
-      newKpi.classList.add('switching-in');
-      requestAnimationFrame(function() {
-        newKpi.classList.remove('switching-in');
-        newKpi.classList.add('active');
-      });
-    }
-    if (newPag) {
-      newPag.classList.add('switching-in');
-      requestAnimationFrame(function() {
-        newPag.classList.remove('switching-in');
-        newPag.classList.add('active');
-      });
-    }
-    if (newCards) {
-      newCards.classList.add('switching-in');
-      requestAnimationFrame(function() {
-        newCards.classList.remove('switching-in');
-        newCards.classList.add('active');
-      });
-    }
-
-    renderAll();
-  }, 300);
+  renderAll();
 }
 
 /* ============ SEARCH ============ */
@@ -410,9 +400,10 @@ function updateSearchUI() {
   var countEl = $('resultCount');
   if (clearBtn) clearBtn.style.display = currentSearchQuery ? 'flex' : 'none';
 
-  var count = currentView === 'orders' 
-    ? getFilteredOrders().length 
-    : getFilteredTrading().length;
+  var count;
+  if (currentView === 'orders') count = getFilteredOrders().length;
+  else if (currentView === 'trading') count = getFilteredTrading().length;
+  else count = getFilteredExpenses().length;
 
   if (countEl) {
     if (currentSearchQuery) {
@@ -438,17 +429,22 @@ $('refreshBtn').addEventListener('click', async function() {
   showToast('Refreshing data...', 'info', 1500);
   await doFetchOrders();
   await doFetchTrading();
+  await doFetchExpenses();
   renderAll();
   showToast('Data refreshed', 'success', 2000);
 });
 
-/* ============ NEW ORDER / TRADE / PAYMENT ============ */
+/* ============ NEW ORDER / TRADE / EXPENSE / PAYMENT ============ */
 $('newOrderBtn').addEventListener('click', function() {
   if (window.openOrderPanel) window.openOrderPanel();
 });
 
 $('newTradeBtn').addEventListener('click', function() {
   if (window.openTradePanel) window.openTradePanel();
+});
+
+$('newExpenseBtn').addEventListener('click', function() {
+  if (window.openExpensePanel) window.openExpensePanel();
 });
 
 $('receivePaymentBtn').addEventListener('click', function() {
@@ -518,6 +514,8 @@ $('clearFiltersBtn').addEventListener('click', function() {
   $('filterSoldTo').value = '';
   $('filterMemoNo').value = '';
   $('filterPaymentStatus').value = '';
+  $('filterExpenseCategory').value = '';
+  $('filterExpenseSeller').value = '';
   sortCol = null;
   sortDesc = false;
   currentPage = 1;
@@ -549,8 +547,20 @@ function renderTradePagination() {
     '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeTradePage(' + totalPages + ')">Last</button>';
 }
 
+function renderExpensePagination() {
+  var filtered = getFilteredExpenses();
+  var totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
+  $('expensePaginationBar').innerHTML =
+    '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window.changeExpensePage(1)">First</button>' +
+    '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window.changeExpensePage(' + (currentPage - 1) + ')">Prev</button>' +
+    '<span class="page-info">Page ' + currentPage + ' of ' + totalPages + '</span>' +
+    '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeExpensePage(' + (currentPage + 1) + ')">Next</button>' +
+    '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeExpensePage(' + totalPages + ')">Last</button>';
+}
+
 window.changePage = function(p) { currentPage = p; renderTable(); renderPagination(); };
 window.changeTradePage = function(p) { currentPage = p; renderTradeTable(); renderTradePagination(); };
+window.changeExpensePage = function(p) { currentPage = p; renderExpenseTable(); renderExpensePagination(); };
 
 /* ============ SWIPE GESTURES (mobile) ============ */
 function initSwipeGestures() {
@@ -582,7 +592,7 @@ function initSwipeGestures() {
         changePage(currentPage - 1);
         showToast('Page ' + currentPage, 'info', 800);
       }
-    } else {
+    } else if (currentView === 'trading') {
       filtered = getFilteredTrading();
       totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
       if (diff > 0 && currentPage < totalPages) {
@@ -590,6 +600,16 @@ function initSwipeGestures() {
         showToast('Page ' + currentPage, 'info', 800);
       } else if (diff < 0 && currentPage > 1) {
         changeTradePage(currentPage - 1);
+        showToast('Page ' + currentPage, 'info', 800);
+      }
+    } else if (currentView === 'expenses') {
+      filtered = getFilteredExpenses();
+      totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
+      if (diff > 0 && currentPage < totalPages) {
+        changeExpensePage(currentPage + 1);
+        showToast('Page ' + currentPage, 'info', 800);
+      } else if (diff < 0 && currentPage > 1) {
+        changeExpensePage(currentPage - 1);
         showToast('Page ' + currentPage, 'info', 800);
       }
     }
@@ -625,7 +645,6 @@ function getFilteredOrders() {
   if (memoNoFilter) rows = rows.filter(function(r) { return String(r[DK.memoNo] || '').toLowerCase() === memoNoFilter; });
   if (paymentStatusFilter) rows = rows.filter(function(r) { return (r[DK.paymentStatus] || 'Not Sold').trim() === paymentStatusFilter; });
 
-  // IN CT sort
   if (sortCol === 'inCt') {
     rows.sort(function(a, b) {
       var av = parseFloat(a[DK.inCt]) || 0;
@@ -651,6 +670,21 @@ function getFilteredTrading() {
   if (memoNo) rows = rows.filter(function(r) { return String(r[SHEET_KEYS.memoNo] || '').toLowerCase() === memoNo; });
   if (soldTo) rows = rows.filter(function(r) { return String(r[SHEET_KEYS.soldTo] || '').toLowerCase().includes(soldTo); });
   if (paymentStatus) rows = rows.filter(function(r) { return (r[SHEET_KEYS.paymentStatus] || 'Not Sold').trim() === paymentStatus; });
+  return rows;
+}
+
+function getFilteredExpenses() {
+  var rows = [...EXPENSES];
+  var q = currentSearchQuery;
+  if (q) {
+    rows = rows.filter(function(r) {
+      return Object.values(r).some(function(v) { return String(v).toLowerCase().includes(q); });
+    });
+  }
+  var category = $('filterExpenseCategory').value;
+  var seller = $('filterExpenseSeller').value.trim().toLowerCase();
+  if (category) rows = rows.filter(function(r) { return (r[EXPENSE_KEYS.category] || '') === category; });
+  if (seller) rows = rows.filter(function(r) { return String(r[EXPENSE_KEYS.seller] || '').toLowerCase().includes(seller); });
   return rows;
 }
 
@@ -697,9 +731,11 @@ function getUnifiedResults() {
 function renderUnifiedView() {
   $('ordersViewBtn').classList.remove('active');
   $('tradingViewBtn').classList.remove('active');
+  $('expensesViewBtn').classList.remove('active');
   $('headerStats').style.display = 'none';
   $('kpiGrid').style.display = 'none';
   $('tradeKpiGrid').style.display = 'none';
+  $('expenseKpiGrid').style.display = 'none';
 
   var banner = $('unifiedBanner');
   if (!banner) {
@@ -720,7 +756,6 @@ function renderUnifiedView() {
     '<button class="btn text small" style="margin-left:auto;" onclick="$(\'filterMemoNo\').value=\'\';$(\'filterSoldTo\').value=\'\';window.currentPage=1;renderAll();">Show tab view</button>';
   banner.style.display = 'flex';
 
-  // Payment summary
   var summary = $('unifiedSummary');
   if (!summary) {
     summary = document.createElement('div');
@@ -761,6 +796,7 @@ function renderUnifiedPagination() {
     '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeUnifiedPage(' + (currentPage + 1) + ')">Next</button>' +
     '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeUnifiedPage(' + totalPages + ')">Last</button>';
   $('tradePaginationBar').style.display = 'none';
+  $('expensePaginationBar').style.display = 'none';
 }
 
 window.changeUnifiedPage = function(p) {
@@ -774,17 +810,21 @@ window.changeUnifiedPage = function(p) {
 window.ROLE = ROLE;
 window.DK = DK;
 window.SHEET_KEYS = SHEET_KEYS;
+window.EXPENSE_KEYS = EXPENSE_KEYS;
 window.ORDERS = ORDERS;
 window.TRADING = TRADING;
+window.EXPENSES = EXPENSES;
 window.currentPage = currentPage;
 window.PAGE_SIZE = PAGE_SIZE;
 window.currentSearchQuery = currentSearchQuery;
 window.getFilteredOrders = getFilteredOrders;
 window.getFilteredTrading = getFilteredTrading;
+window.getFilteredExpenses = getFilteredExpenses;
 window.switchView = switchView;
 window.renderAll = renderAll;
 window.doFetchOrders = doFetchOrders;
 window.doFetchTrading = doFetchTrading;
+window.doFetchExpenses = doFetchExpenses;
 window.equalizeColumnWidths = equalizeColumnWidths;
 window.populateFilters = populateFilters;
 window.GOLD_RATE = GOLD_RATE;
@@ -794,3 +834,4 @@ window.isUnifiedMode = isUnifiedMode;
 window.getUnifiedResults = getUnifiedResults;
 window.renderUnifiedView = renderUnifiedView;
 window.sortByColumn = sortByColumn;
+window.changeExpensePage = function(p) { currentPage = p; renderExpenseTable(); renderExpensePagination(); };
