@@ -2063,3 +2063,16 @@ body.customer-role .trade-card:hover {
 #tradingTable th.num {
   text-align: right;
 }
+/* Expense cards */
+.expense-card .card-header { border-bottom: none; }
+.expense-card .card-header-right { gap: 10px; }
+
+/* Expense panel uses same panel styles — no extra CSS needed */
+
+/* Hide expense filters by default */
+#filterExpenseCategory,
+#filterExpenseSeller { display: none; }
+
+/* When in expenses view, show them (handled by JS, but CSS fallback) */
+body.expenses-active #filterExpenseCategory,
+body.expenses-active #filterExpenseSeller { display: inline-block; }
