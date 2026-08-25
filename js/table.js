@@ -3,17 +3,16 @@
    ============================================ */
 
 function renderTable() {
-  var srIcon   = sortCol === 'sr'   ? (sortDesc ? '↓' : '↑') : '↕';
-  var ctIcon   = sortCol === 'inCt' ? (sortDesc ? '↓' : '↑') : '↕';
+  var sortIcon = '↕';
+  if (sortCol === 'inCt') sortIcon = sortDesc ? '↓' : '↑';
 
   // Restore original orders table header
   var theadTr = $('ordersTable').querySelector('thead tr');
   if (theadTr) {
     theadTr.innerHTML =
-      '<th class="num sortable" onclick="window.sortByColumn(\'sr\')" style="cursor:pointer;">Sr. <span class="sort-icon">' + srIcon + '</span></th>' +
-      '<th>Customer</th><th>Style No.</th><th>Date</th>' +
+      '<th class="num">Sr.</th><th>Customer</th><th>Style No.</th><th>Date</th>' +
       '<th class="num">Gross Wt</th><th class="num">Net Wt</th>' +
-      '<th class="num sortable" onclick="window.sortByColumn(\'inCt\')" style="cursor:pointer;">Carat <span class="sort-icon">' + ctIcon + '</span></th>' +
+      '<th class="num sortable" onclick="window.sortByColumn(\'inCt\')" style="cursor:pointer;">Carat <span class="sort-icon">' + sortIcon + '</span></th>' +
       '<th class="num">Sub Total</th><th class="num">$</th><th>Memo No.</th><th>Sold To</th>' +
       '<th class="num">Sale Price</th><th>Status</th>';
   }
@@ -116,6 +115,45 @@ function renderTable() {
   renderCards(pageRows);
 }
 
+/* ============ CARD SWIPE (mobile) ============ */
+function setupCardSwipe(card) {
+  if (!card) return;
+  var startX = 0, currentX = 0, swiped = false;
+  var threshold = 60;
+
+  card.addEventListener('touchstart', function(e) {
+    startX = e.touches[0].clientX;
+    card.style.transition = 'none';
+  }, { passive: true });
+
+  card.addEventListener('touchmove', function(e) {
+    currentX = e.touches[0].clientX;
+    var diff = currentX - startX;
+    if (diff < 0 && diff > -120) {
+      card.style.transform = 'translateX(' + diff + 'px)';
+    }
+  }, { passive: true });
+
+  card.addEventListener('touchend', function() {
+    var diff = currentX - startX;
+    card.style.transition = 'transform 0.25s cubic-bezier(0.4, 0.0, 0.2, 1)';
+    if (diff < -threshold) {
+      card.style.transform = 'translateX(-80px)';
+      swiped = true;
+    } else {
+      card.style.transform = 'translateX(0)';
+      swiped = false;
+    }
+  });
+
+  card.addEventListener('click', function(e) {
+    if (swiped && !e.target.closest('.card-actions')) {
+      card.style.transform = 'translateX(0)';
+      swiped = false;
+    }
+  });
+}
+
 function renderCards(rows) {
   var container = $('cardList');
   var q = window.currentSearchQuery || '';
@@ -208,6 +246,7 @@ function renderCards(rows) {
         '<div class="card-row" style="padding:6px 0;"><span class="card-label">Sale Price</span><span class="card-value">' + (salePrice ? '$' + fmtMoney(salePrice) : '—') + '</span></div>' +
         '<div class="card-row" style="padding:6px 0;"><span class="card-label">Balance</span><span class="card-value">$' + (r[DK.balanceDue] || '0') + '</span></div>' +
         '</div>' +
+        '<div class="card-actions" onclick="event.stopPropagation();if(window.openOrderPanel)window.openOrderPanel('' + r._id + '')">Open</div>' +
         '</div>';
     }
 
@@ -407,6 +446,7 @@ function renderTradeCards(rows) {
       '<span class="status-badge ' + statusClass + '">' + status + '</span>' +
       '</div>' +
       '</div>' +
+      '<div class="card-actions" onclick="event.stopPropagation();if(ROLE!=='customer'&&window.openEditTrade)window.openEditTrade('' + r._id + '')">Open</div>' +
       '</div>';
   }).join('');
 
@@ -418,6 +458,7 @@ function renderTradeCards(rows) {
       }
       if (window.openEditTrade) window.openEditTrade(card.dataset.id);
     });
+    setupCardSwipe(card);
   });
 }
 
@@ -659,6 +700,7 @@ function renderExpenseCards(rows) {
       '<span class="card-value">$' + fmtMoney(amount) + '</span>' +
       '</div>' +
       '</div>' +
+      '<div class="card-actions" onclick="event.stopPropagation();if(ROLE!=='customer'&&window.openExpensePanel)window.openExpensePanel('' + r._id + '')">Open</div>' +
       '</div>';
   }).join('');
 
@@ -670,6 +712,7 @@ function renderExpenseCards(rows) {
       }
       if (window.openExpensePanel) window.openExpensePanel(card.dataset.id);
     });
+    setupCardSwipe(card);
   });
 }
 
