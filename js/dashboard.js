@@ -104,9 +104,6 @@ function renderTradeKPIs() {
 }function renderExpenseKPIs() {
   var K = EXPENSE_KEYS;
   var total = EXPENSES.reduce(function(s, r) { return s + (parseFloat(r[K.amount]) || 0); }, 0);
-  var reimbursed = EXPENSES.filter(function(r) { return String(r[K.reimbursed] || '').toLowerCase() === 'yes'; })
-    .reduce(function(s, r) { return s + (parseFloat(r[K.amount]) || 0); }, 0);
-  var pending = total - reimbursed;
 
   var catCounts = {};
   EXPENSES.forEach(function(r) {
@@ -118,9 +115,9 @@ function renderTradeKPIs() {
   $('hstat_1_label').textContent = 'Total Expenses';
   $('hstat_1').textContent = '$' + total.toLocaleString('en-IN', { maximumFractionDigits: 2 });
   $('hstat_1').style.color = 'var(--error)';
-  $('hstat_2_label').textContent = 'Pending Reimbursement';
-  $('hstat_2').textContent = '$' + pending.toLocaleString('en-IN', { maximumFractionDigits: 2 });
-  $('hstat_2').style.color = 'var(--warning)';
+  $('hstat_2_label').textContent = 'Record Count';
+  $('hstat_2').textContent = EXPENSES.length.toString();
+  $('hstat_2').style.color = 'var(--text)';
   $('hstat_3_label').textContent = 'Top Category';
   $('hstat_3').textContent = topCat;
   $('hstat_3').style.color = 'var(--accent)';
@@ -129,12 +126,6 @@ function renderTradeKPIs() {
     '<div class="kpi-card"><div class="kpi-label">Total Expenses</div>' +
     '<div class="kpi-value">$' + fmtMoney(total) + '</div>' +
     '<div class="kpi-sub">all time spend</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">Reimbursed</div>' +
-    '<div class="kpi-value" style="color:var(--success)">$' + fmtMoney(reimbursed) + '</div>' +
-    '<div class="kpi-sub">approved & paid back</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">Pending</div>' +
-    '<div class="kpi-value" style="color:var(--warning)">$' + fmtMoney(pending) + '</div>' +
-    '<div class="kpi-sub">awaiting reimbursement</div></div>' +
     '<div class="kpi-card"><div class="kpi-label">Record Count</div>' +
     '<div class="kpi-value">' + EXPENSES.length + '</div>' +
     '<div class="kpi-sub">expense entries</div></div>' +
