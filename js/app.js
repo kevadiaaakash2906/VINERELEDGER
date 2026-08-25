@@ -184,6 +184,7 @@ async function initApp() {
   await loadGoldRate();
   renderAll();
   initSwipeGestures();
+  initPullToRefresh();
 }
 
 async function loadGoldRate() {
@@ -390,6 +391,17 @@ function switchView(view) {
 
   $('receivePaymentBtn').style.display = (ROLE !== 'customer' && view !== 'expenses') ? 'inline-flex' : 'none';
   $('headerStats').style.display = 'flex';
+
+  // Mobile FAB wiring
+  var fab = $('mobileFab');
+  if (fab) {
+    fab.style.display = (window.innerWidth <= 900 && ROLE !== 'customer') ? 'flex' : 'none';
+    fab.onclick = function() {
+      if (currentView === 'orders' && window.openOrderPanel) window.openOrderPanel();
+      else if (currentView === 'trading' && window.openTradePanel) window.openTradePanel();
+      else if (currentView === 'expenses' && window.openExpensePanel) window.openExpensePanel();
+    };
+  }
 
   renderAll();
 }
@@ -657,7 +669,7 @@ function getFilteredOrders() {
   if (memoNoFilter) rows = rows.filter(function(r) { return String(r[DK.memoNo] || '').toLowerCase() === memoNoFilter; });
   if (paymentStatusFilter) rows = rows.filter(function(r) { return (r[DK.paymentStatus] || 'Not Sold').trim() === paymentStatusFilter; });
 
-    if (sortCol === 'inCt') {
+  if (sortCol === 'inCt') {
     rows.sort(function(a, b) {
       var av = parseFloat(a[DK.inCt]) || 0;
       var bv = parseFloat(b[DK.inCt]) || 0;
@@ -824,6 +836,62 @@ window.changeUnifiedPage = function(p) {
   renderUnifiedPagination();
 };
 
+
+/* ============ PULL TO REFRESH (mobile) ============ */
+function initPullToRefresh() {
+  var startY = 0;
+  var threshold = 120;
+  var refreshing = false;
+  var indicator = document.createElement('div');
+  indicator.className = 'ptr-indicator';
+  indicator.innerHTML = '<div class="ptr-spinner"></div>';
+  indicator.style.cssText = 'position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(-40px);z-index:120;opacity:0;transition:opacity 0.2s;pointer-events:none;';
+  var spinner = indicator.querySelector('.ptr-spinner');
+  if (spinner) spinner.style.cssText = 'width:28px;height:28px;border:3px solid var(--md-outline);border-top-color:var(--md-primary);border-radius:50%;animation:ptrSpin 0.8s linear infinite;';
+  document.body.prepend(indicator);
+
+  // inject keyframes if not present
+  if (!document.getElementById('ptr-style')) {
+    var s = document.createElement('style');
+    s.id = 'ptr-style';
+    s.textContent = '@keyframes ptrSpin{to{transform:rotate(360deg)}}';
+    document.head.appendChild(s);
+  }
+
+  document.addEventListener('touchstart', function(e) {
+    if (window.scrollY === 0) startY = e.touches[0].clientY;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function(e) {
+    if (refreshing || window.scrollY > 0) return;
+    var diff = e.touches[0].clientY - startY;
+    if (diff > 0 && diff < threshold * 1.5) {
+      indicator.style.transform = 'translateX(-50%) translateY(' + (diff - 40) + 'px)';
+      indicator.style.opacity = Math.min(diff / threshold, 1);
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', function() {
+    var diff = parseFloat(indicator.style.transform.replace('translateY(', '').replace('px)', '')) || 0;
+    diff = Math.abs(diff);
+    if (diff > threshold - 40 && !refreshing) {
+      refreshing = true;
+      indicator.querySelector('.ptr-spinner').style.animationDuration = '0.5s';
+      showToast('Refreshing...', 'info', 1000);
+      Promise.all([doFetchOrders(), doFetchTrading(), doFetchExpenses()]).then(function() {
+        renderAll();
+        refreshing = false;
+        indicator.querySelector('.ptr-spinner').style.animationDuration = '0.8s';
+        indicator.style.transform = 'translateX(-50%) translateY(-40px)';
+        indicator.style.opacity = '0';
+      });
+    } else {
+      indicator.style.transform = 'translateX(-50%) translateY(-40px)';
+      indicator.style.opacity = '0';
+    }
+  }, { passive: true });
+}
+
 /* ============ EXPOSE GLOBALLY ============ */
 window.ROLE = ROLE;
 window.DK = DK;
@@ -853,3 +921,11 @@ window.getUnifiedResults = getUnifiedResults;
 window.renderUnifiedView = renderUnifiedView;
 window.sortByColumn = sortByColumn;
 window.changeExpensePage = function(p) { currentPage = p; renderExpenseTable(); renderExpensePagination(); };
+
+/* ============ FAB RESIZE LISTENER ============ */
+window.addEventListener('resize', function() {
+  var fab = $('mobileFab');
+  if (fab) {
+    fab.style.display = (window.innerWidth <= 900 && ROLE !== 'customer') ? 'flex' : 'none';
+  }
+});
