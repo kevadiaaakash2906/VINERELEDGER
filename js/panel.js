@@ -154,11 +154,29 @@ window.openOrderPanel = function(id) {
   }
   // ── END SNAPSHOT ──
 
+  // Reset header badge
+  var statusBadge = $('panelStatusBadge');
+  if (statusBadge) { statusBadge.style.display = 'none'; }
+  var memoBanner = $('panelMemoBanner');
+  if (memoBanner) { memoBanner.style.display = 'none'; memoBanner.textContent = ''; }
+
   if (id) {
     var order = ORDERS.find(function(r) { return r._id === id; });
     if (!order) return;
 
     $('panelTitle').textContent = 'Edit Order #' + order[DK.sr];
+
+    // Status badge in header
+    if (statusBadge) {
+      var status = (order[DK.paymentStatus] || 'Not Sold').trim();
+      var statusClass = {
+        'Not Sold': 'status-not-sold', 'Unpaid': 'status-unpaid',
+        'Partial': 'status-partial', 'Paid': 'status-paid'
+      }[status] || 'status-not-sold';
+      statusBadge.className = 'status-badge ' + statusClass;
+      statusBadge.textContent = status;
+      statusBadge.style.display = 'inline-flex';
+    }
     $('f_customer').value = order[DK.customer] || '';
     $('f_style').value = order[DK.style] || '';
     $('f_date').value = order[DK.date] || '';
@@ -175,6 +193,23 @@ window.openOrderPanel = function(id) {
     }
     $('f_memoNo').value = order[DK.memoNo] || '';
     $('f_soldTo').value = order[DK.soldTo] || '';
+
+    // Memo banner
+    var memoNoVal = order[DK.memoNo];
+    if (memoNoVal && memoBanner) {
+      var mOrders = getMemoOrders(memoNoVal);
+      var mTrades = getMemoTrades(memoNoVal);
+      var mBill = mOrders.reduce(function(s,o){return s+(parseFloat(o[DK.salePrice])||0);},0) +
+                  mTrades.reduce(function(s,t){return s+(parseFloat(t[SHEET_KEYS.salePrice])||0);},0);
+      var mPaid = currentInstallments.reduce(function(s,i){return s+(parseFloat(i.amount)||0);},0);
+      var mBal = mBill - mPaid;
+      memoBanner.innerHTML = '<div style="font-weight:600;margin-bottom:2px;">Memo ' + escapeHtml(memoNoVal) + '</div>' +
+        '<div class="memo-row"><span>Items</span><strong>' + (mOrders.length + mTrades.length) + '</strong></div>' +
+        '<div class="memo-row"><span>Total Bill</span><strong>$' + fmtMoney(mBill) + '</strong></div>' +
+        '<div class="memo-row"><span>Total Paid</span><strong>$' + fmtMoney(mPaid) + '</strong></div>' +
+        '<div class="memo-row"><span>Balance</span><strong style="color:' + (mBal>0?'var(--error)':'var(--success)') + '">$' + fmtMoney(Math.abs(mBal)) + '</strong></div>';
+      memoBanner.style.display = 'block';
+    }
     if (!order[DK.soldTo]) {
       var memoNo = order[DK.memoNo];
       if (memoNo) {
