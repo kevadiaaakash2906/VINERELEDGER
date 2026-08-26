@@ -6,7 +6,16 @@ var editingId = null;
 var currentInstallments = [];
 var readOnly = false;
 var panelGoldRate = null;   // snapshot for this editing session — never changes while panel is open
-
+/* ============ TABS ============ */
+document.querySelectorAll('.panel-tab').forEach(function(tab) {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.panel-tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+    tab.classList.add('active');
+    var target = document.getElementById(tab.dataset.tab);
+    if (target) target.classList.add('active');
+  });
+});
 /* ============ MEMO HELPERS ============ */
 function getMemoOrders(memoNo) {
   if (!memoNo) return [];
@@ -392,13 +401,11 @@ $('addInstallmentBtn').addEventListener('click', async function() {
 });
 
 function renderInstallments() {
-  var list = $('installmentsList');
-  if (!currentInstallments.length) { list.innerHTML = ''; return; }
-  list.innerHTML = currentInstallments.map(function(inst, i) {
-    return '<div class="installment-item">' +
-      '<span>$' + fmtMoney(inst.amount) + ' · ' + inst.date + '</span>' +
-      '<button onclick="window.removeInst(' + i + ')">&times;</button>' +
-      '</div>';
+  var container = $('installmentChips');
+  if (!currentInstallments.length) { container.innerHTML = ''; return; }
+  container.innerHTML = currentInstallments.map(function(inst, i) {
+    return '<span class="installment-chip">$' + fmtMoney(inst.amount) + ' · ' + inst.date +
+      '<button onclick="window.removeInst(' + i + ')">&times;</button></span>';
   }).join('');
 }
 
