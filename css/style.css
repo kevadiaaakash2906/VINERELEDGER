@@ -2272,3 +2272,139 @@ body.panel-open {
 #panel, #tradePanel, #expensePanel, #paymentSearchModal {
   padding-bottom: env(safe-area-inset-bottom);
 }
+/* ============================================
+   PANEL LAYOUT REDESIGN
+   ============================================ */
+
+/* Wider panel for complex forms */
+@media (min-width: 901px) {
+  #panel { max-width: 640px; }
+}
+
+/* ── Tabs ── */
+.panel-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 var(--space-5);
+  border-bottom: 1px solid var(--md-outline-variant);
+  background: var(--md-surface);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  flex-shrink: 0;
+}
+.panel-tab {
+  padding: 10px 18px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--md-on-surface-variant);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-standard);
+}
+.panel-tab:hover { color: var(--md-on-surface); background: rgba(26,115,232,0.04); }
+.panel-tab.active { color: var(--md-primary); border-bottom-color: var(--md-primary); }
+
+/* ── Tab Content ── */
+.tab-content { display: none; animation: fadeIn var(--duration-normal) var(--ease-standard); }
+.tab-content.active { display: block; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Section Cards ── */
+.section-card {
+  background: var(--md-surface-1);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.section-card-title {
+  font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--md-on-surface-variant);
+  margin-bottom: var(--space-3);
+}
+
+/* ── 2-Column Field Grid ── */
+.fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3) var(--space-4);
+}
+.fields-grid .field { margin-bottom: 0; }
+.fields-grid .field.full-width { grid-column: 1 / -1; }
+
+@media (max-width: 900px) {
+  .fields-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Sticky Live Preview ── */
+.sticky-preview {
+  position: sticky;
+  top: 41px;
+  background: var(--md-surface);
+  z-index: 4;
+  padding: var(--space-3) var(--space-5);
+  margin: 0 calc(-1 * var(--space-5)) var(--space-3);
+  border-bottom: 1px solid var(--md-outline-variant);
+}
+
+/* ── Compact Installment Chips ── */
+.installment-chips {
+  display: flex; flex-wrap: wrap; gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.installment-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px;
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  border-radius: var(--radius-pill);
+  font-size: 13px; font-weight: 500;
+}
+.installment-chip button {
+  background: none; border: none;
+  color: var(--md-on-primary-container); opacity: 0.6;
+  cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px;
+}
+.installment-chip button:hover { opacity: 1; }
+
+/* ── Memo Banner (top of panel) ── */
+.panel-memo-banner {
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin: var(--space-3) var(--space-5) var(--space-2);
+  font-size: 14px; font-weight: 500;
+}
+.panel-memo-banner .memo-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 2px 0; font-size: 13px;
+}
+.panel-memo-banner .memo-row strong { font-weight: 600; }
+
+/* ── Sticky Footer ── */
+.panel-foot {
+  position: sticky;
+  bottom: 0;
+  background: var(--md-surface);
+  z-index: 10;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.04);
+}
+
+/* ── Status Badge in Header ── */
+.panel-head { position: relative; }
+#panelStatusBadge {
+  margin-left: auto; margin-right: var(--space-3);
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 3px 10px; border-radius: var(--radius-pill);
+}
