@@ -266,10 +266,23 @@ function updatePreview() {
   $('prev_usd').textContent = usd ? '$' + usd.toFixed(2) : '—';
 
   var totalPaid = currentInstallments.reduce(function(s, i) { return s + (parseFloat(i.amount) || 0); }, 0);
+
+  // ── MEMO-AWARE BALANCE ──
   var balance = salePrice ? salePrice - totalPaid : 0;
+  var memoNoPreview = $('f_memoNo').value.trim().toUpperCase();
+  if (memoNoPreview) {
+    var memoOrdersPreview = ORDERS.filter(function(o) { return o[DK.memoNo] === memoNoPreview && o._id !== editingId; });
+    var memoTradesPreview = TRADING.filter(function(t) { return t[SHEET_KEYS.memoNo] === memoNoPreview; });
+    var memoTotalBillPreview = salePrice +
+      memoOrdersPreview.reduce(function(s, o) { return s + (parseFloat(o[DK.salePrice]) || 0); }, 0) +
+      memoTradesPreview.reduce(function(s, t) { return s + (parseFloat(t[SHEET_KEYS.salePrice]) || 0); }, 0);
+    balance = memoTotalBillPreview - totalPaid;
+  }
+  // ── END ──
+
   var status = 'Not Sold';
   if (salePrice) {
-    if (totalPaid >= salePrice) status = 'Paid';
+    if (totalPaid >= (memoNoPreview ? memoTotalBillPreview : salePrice)) status = 'Paid';
     else if (totalPaid > 0) status = 'Partial';
     else status = 'Unpaid';
   }
@@ -422,16 +435,16 @@ $('saveBtn').addEventListener('click', async function() {
   var totalPaid = currentInstallments.reduce(function(s, i) { return s + (parseFloat(i.amount) || 0); }, 0);
 
   var memoNo = $('f_memoNo').value.trim().toUpperCase();
-  var maxAllowed = salePrice;
+  var memoTotalBill = salePrice;
   if (memoNo) {
     var memoOrders = ORDERS.filter(function(o) { return o[DK.memoNo] === memoNo && o._id !== editingId; });
     var memoTrades = TRADING.filter(function(t) { return t[SHEET_KEYS.memoNo] === memoNo; });
-    maxAllowed = salePrice +
+    memoTotalBill = salePrice +
       memoOrders.reduce(function(s, o) { return s + (parseFloat(o[DK.salePrice]) || 0); }, 0) +
       memoTrades.reduce(function(s, t) { return s + (parseFloat(t[SHEET_KEYS.salePrice]) || 0); }, 0);
   }
 
-  if (salePrice && totalPaid > maxAllowed) { $('err_f_installment').textContent = 'Payments exceed total bill'; valid = false; }
+  if (salePrice && totalPaid > memoTotalBill) { $('err_f_installment').textContent = 'Payments exceed total bill'; valid = false; }
 
   if (!valid) {
     $('saveMsg').textContent = 'Please fix the highlighted fields.';
