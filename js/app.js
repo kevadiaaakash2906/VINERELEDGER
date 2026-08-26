@@ -796,10 +796,23 @@ function renderUnifiedView() {
   }
   var results = getUnifiedResults();
   var totalBill = 0, totalPaid = 0;
+  var seenMemos = {};
+
   results.forEach(function(r) {
     var K = r._type === 'order' ? DK : SHEET_KEYS;
     totalBill += parseFloat(r[K.salePrice]) || 0;
-    totalPaid += parseFloat(r[K.amountPaid]) || 0;
+
+    var memo = r._type === 'order' ? r[DK.memoNo] : r[SHEET_KEYS.memoNo];
+    if (memo) {
+      if (!seenMemos[memo]) {
+        seenMemos[memo] = true;
+        var log = [];
+        try { log = JSON.parse(r[K.paymentLog] || '[]'); } catch(e) {}
+        totalPaid += log.reduce(function(s, p) { return s + (parseFloat(p.amount) || 0); }, 0);
+      }
+    } else {
+      totalPaid += parseFloat(r[K.amountPaid]) || 0;
+    }
   });
   var balance = totalBill - totalPaid;
   var status = totalBill === 0 ? 'Not Sold' : (totalPaid >= totalBill ? 'Paid' : (totalPaid > 0 ? 'Partial' : 'Unpaid'));

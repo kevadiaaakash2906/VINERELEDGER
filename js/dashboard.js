@@ -10,8 +10,37 @@ function renderKPIs() {
   var totalCost = sold.reduce(function(s, r) { return s + (parseFloat(r[DK.usd]) || 0); }, 0);
   var profit = totalRevenue - totalCost;
 
-  var totalCollected = ORDERS.reduce(function(s, r) { return s + (parseFloat(r[DK.amountPaid]) || 0); }, 0);
-  var totalOutstanding = ORDERS.reduce(function(s, r) { return s + (parseFloat(r[DK.balanceDue]) || 0); }, 0);
+  // ── MEMO-AWARE COLLECTED / OUTSTANDING ──
+  var memoPaids = {};
+  ORDERS.forEach(function(r) {
+    var memo = r[DK.memoNo];
+    if (memo && !memoPaids[memo]) {
+      var log = [];
+      try { log = JSON.parse(r[DK.paymentLog] || '[]'); } catch(e) {}
+      memoPaids[memo] = log.reduce(function(s, p) { return s + (parseFloat(p.amount) || 0); }, 0);
+    }
+  });
+
+  var totalCollected = 0;
+  var totalOutstanding = 0;
+  var seenMemos = {};
+
+  ORDERS.forEach(function(r) {
+    var memo = r[DK.memoNo];
+    if (memo) {
+      if (!seenMemos[memo]) {
+        seenMemos[memo] = true;
+        var memoBill = ORDERS.reduce(function(s, o) { return s + (o[DK.memoNo] === memo ? (parseFloat(o[DK.salePrice]) || 0) : 0); }, 0);
+        var paid = memoPaids[memo] || 0;
+        totalCollected += paid;
+        totalOutstanding += Math.max(0, memoBill - paid);
+      }
+    } else {
+      totalCollected += parseFloat(r[DK.amountPaid]) || 0;
+      totalOutstanding += parseFloat(r[DK.balanceDue]) || 0;
+    }
+  });
+  // ── END ──
 
   var stockCount = notSold.length;
   var stockCost = notSold.reduce(function(s, r) {
@@ -26,7 +55,6 @@ function renderKPIs() {
     return s + (sub / 94);
   }, 0);
 
-  // Header stats — same 3-slot layout for coherence
   $('hstat_1_label').textContent = 'Profit / Loss';
   $('hstat_1').textContent = (profit >= 0 ? '+' : '-') + '$' + Math.abs(profit).toLocaleString('en-IN', { maximumFractionDigits: 2 });
   $('hstat_2_label').textContent = 'Remaining Stock';
@@ -34,7 +62,6 @@ function renderKPIs() {
   $('hstat_3_label').textContent = 'Stock Cost';
   $('hstat_3').textContent = '$' + stockCost.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
-  // Multicolored header stats
   $('hstat_1').style.color = profit >= 0 ? 'var(--success)' : 'var(--error)';
   $('hstat_2').style.color = 'var(--accent)';
   $('hstat_3').style.color = 'var(--warning)';
@@ -67,10 +94,39 @@ function renderTradeKPIs() {
   var totalInvested = TRADING.reduce(function(s, r) { return s + (parseFloat(r[K.purchasePrice]) || 0); }, 0);
   var totalSales = sold.reduce(function(s, r) { return s + (parseFloat(r[K.salePrice]) || 0); }, 0);
   var netPL = sold.reduce(function(s, r) { return s + ((parseFloat(r[K.salePrice]) || 0) - (parseFloat(r[K.purchasePrice]) || 0)); }, 0);
-  var collected = TRADING.reduce(function(s, r) { return s + (parseFloat(r[K.amountPaid]) || 0); }, 0);
-  var outstanding = TRADING.reduce(function(s, r) { return s + (parseFloat(r[K.balanceDue]) || 0); }, 0);
 
-  // Header stats — same 3-slot layout for coherence
+  // ── MEMO-AWARE COLLECTED / OUTSTANDING ──
+  var memoPaids = {};
+  TRADING.forEach(function(r) {
+    var memo = r[K.memoNo];
+    if (memo && !memoPaids[memo]) {
+      var log = [];
+      try { log = JSON.parse(r[K.paymentLog] || '[]'); } catch(e) {}
+      memoPaids[memo] = log.reduce(function(s, p) { return s + (parseFloat(p.amount) || 0); }, 0);
+    }
+  });
+
+  var collected = 0;
+  var outstanding = 0;
+  var seenMemos = {};
+
+  TRADING.forEach(function(r) {
+    var memo = r[K.memoNo];
+    if (memo) {
+      if (!seenMemos[memo]) {
+        seenMemos[memo] = true;
+        var memoBill = TRADING.reduce(function(s, t) { return s + (t[K.memoNo] === memo ? (parseFloat(t[K.salePrice]) || 0) : 0); }, 0);
+        var paid = memoPaids[memo] || 0;
+        collected += paid;
+        outstanding += Math.max(0, memoBill - paid);
+      }
+    } else {
+      collected += parseFloat(r[K.amountPaid]) || 0;
+      outstanding += parseFloat(r[K.balanceDue]) || 0;
+    }
+  });
+  // ── END ──
+
   $('hstat_1_label').textContent = 'Net P/L';
   $('hstat_1').textContent = (netPL >= 0 ? '+' : '-') + '$' + Math.abs(netPL).toLocaleString('en-IN', { maximumFractionDigits: 2 });
   $('hstat_1').style.color = netPL >= 0 ? 'var(--success)' : 'var(--error)';

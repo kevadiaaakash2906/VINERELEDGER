@@ -127,8 +127,15 @@ function openPaymentForm(id, type) {
   data[K.paymentStatus] = status;
   data[K.paymentLog] = JSON.stringify(installments);
 
-  updateFn(id, data).then(function() {
+  updateFn(id, data).then(async function() {
     showToast('Payment of $' + fmtMoney(amount) + ' recorded for ' + label.toLowerCase() + ' #' + item[K.sr], 'success');
+
+    // Sync payment across other memo items
+    var memoNo = item[K.memoNo];
+    if (memoNo && window.syncMemoPayments) {
+      await window.syncMemoPayments(memoNo, installments, id);
+    }
+
     return fetchFn();
   }).then(function() { renderAll(); }).catch(function(err) {
     console.error(err);

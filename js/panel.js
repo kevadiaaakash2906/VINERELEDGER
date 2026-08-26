@@ -66,31 +66,46 @@ function getAggregatedPaymentLog(memoNo) {
 }
 
 async function syncMemoPayments(memoNo, paymentLog, sourceId) {
+  if (!memoNo) return;
   var orders = getMemoOrders(memoNo);
-  var memoTotalBill = orders.reduce(function(s, o) { return s + (parseFloat(o[DK.salePrice]) || 0); }, 0);
+  var trades = getMemoTrades(memoNo);
+
+  var memoTotalBill = orders.reduce(function(s, o) { return s + (parseFloat(o[DK.salePrice]) || 0); }, 0) +
+                      trades.reduce(function(s, t) { return s + (parseFloat(t[SHEET_KEYS.salePrice]) || 0); }, 0);
   var memoTotalPaid = paymentLog.reduce(function(s, p) { return s + (parseFloat(p.amount) || 0); }, 0);
+
+  var memoStatus = 'Not Sold';
+  if (memoTotalBill > 0) {
+    if (memoTotalPaid >= memoTotalBill) memoStatus = 'Paid';
+    else if (memoTotalPaid > 0) memoStatus = 'Partial';
+    else memoStatus = 'Unpaid';
+  }
 
   for (var i = 0; i < orders.length; i++) {
     var o = orders[i];
     if (o._id === sourceId) continue;
 
-    var salePrice = parseFloat(o[DK.salePrice]) || 0;
-    var balance = salePrice - memoTotalPaid;
-    var status = 'Not Sold';
-    if (salePrice) {
-      if (memoTotalPaid >= memoTotalBill) status = 'Paid';
-      else if (memoTotalPaid > 0) status = 'Partial';
-      else status = 'Unpaid';
-    }
-
     var data = {};
     for (var k in o) data[k] = o[k];
-    data[DK.amountPaid] = memoTotalPaid.toString();
-    data[DK.balanceDue] = balance.toString();
-    data[DK.paymentStatus] = status;
+    data[DK.paymentStatus] = memoStatus;
     data[DK.paymentLog] = JSON.stringify(paymentLog);
+    // Clear row-level amounts — memo is tracked on source row only
+    data[DK.amountPaid] = '';
+    data[DK.balanceDue] = '';
 
-    try { await window.updateOrder(o._id, data); } catch(e) { console.error('Memo sync failed for', o._id, e); }
+    try { await window.updateOrder(o._id, data); } catch(e) { console.error('Memo sync failed for order', o._id, e); }
+  }
+
+  for (var i = 0; i < trades.length; i++) {
+    var t = trades[i];
+    var data = {};
+    for (var k in t) data[k] = t[k];
+    data[SHEET_KEYS.paymentStatus] = memoStatus;
+    data[SHEET_KEYS.paymentLog] = JSON.stringify(paymentLog);
+    data[SHEET_KEYS.amountPaid] = '';
+    data[SHEET_KEYS.balanceDue] = '';
+
+    try { await window.updateTrading(t._id, data); } catch(e) { console.error('Memo sync failed for trade', t._id, e); }
   }
 }
 
@@ -472,9 +487,24 @@ $('saveBtn').addEventListener('click', async function() {
   data[DK.soldTo] = $('f_soldTo').value.trim();
   data[DK.salePrice] = salePrice ? salePrice.toString() : '';
   data[DK.dateSold] = $('f_dateSold').value || '';
-  data[DK.amountPaid] = totalPaid.toString();
-  data[DK.balanceDue] = (salePrice - totalPaid).toString();
+  // ── MEMO-AWARE BALANCE ──
+  var memoNo = data[DK.memoNo];
+  var finalAmountPaid = totalPaid;
+  var finalBalanceDue = salePrice - totalPaid;
+
+  if (memoNo) {
+    var memoOrders = ORDERS.filter(function(o) { return o[DK.memoNo] === memoNo && o._id !== editingId; });
+    var memoTrades = TRADING.filter(function(t) { return t[SHEET_KEYS.memoNo] === memoNo; });
+    var memoTotalBill = salePrice +
+      memoOrders.reduce(function(s, o) { return s + (parseFloat(o[DK.salePrice]) || 0); }, 0) +
+      memoTrades.reduce(function(s, t) { return s + (parseFloat(t[SHEET_KEYS.salePrice]) || 0); }, 0);
+    finalBalanceDue = memoTotalBill - totalPaid;
+  }
+
+  data[DK.amountPaid] = finalAmountPaid.toString();
+  data[DK.balanceDue] = finalBalanceDue.toString();
   data[DK.paymentStatus] = status;
+  // ── END ──
   data[DK.paymentLog] = JSON.stringify(currentInstallments);
   data._flatLabor = isFlatLaborSave;
 
@@ -597,3 +627,5 @@ $('deleteBtn').addEventListener('touchstart', startDeleteTimer);
 $('deleteBtn').addEventListener('mouseup', cancelDeleteTimer);
 $('deleteBtn').addEventListener('mouseleave', cancelDeleteTimer);
 $('deleteBtn').addEventListener('touchend', cancelDeleteTimer);
+
+window.syncMemoPayments = syncMemoPayments;
