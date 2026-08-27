@@ -32,15 +32,6 @@ window.showApp = function(role) {
   var isStaff = ROLE === 'staff';
   var isSeller = ROLE === 'seller';
   var isCustomer = ROLE === 'customer';
-  var newOrderBtn = document.getElementById('newOrderBtn');
-  var receivePaymentBtn = document.getElementById('receivePaymentBtn');
-  var newTradeBtn = document.getElementById('newTradeBtn');
-  var newExpenseBtn = document.getElementById('newExpenseBtn');
-  if (newOrderBtn) newOrderBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
-  if (receivePaymentBtn) receivePaymentBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
-  if (newTradeBtn) newTradeBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
-  if (newExpenseBtn) newExpenseBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
-
   document.body.classList.remove('staff-role', 'seller-role', 'customer-role');
   if (isStaff) document.body.classList.add('staff-role');
   else if (isSeller) document.body.classList.add('seller-role');
@@ -55,9 +46,9 @@ window.checkStoredAuth = function() {
     if (user) {
       ROLE = savedRole;
       showApp(savedRole);
+      switchView('orders');  // Set correct buttons immediately
       if (typeof initApp === 'function') {
         await initApp();
-        switchView('orders');  // Initialize view - show only Orders buttons
       }
     }
   });
@@ -100,8 +91,8 @@ window.login = async function() {
       }
 
       showApp(role);
+      switchView('orders');  // Set correct buttons BEFORE data loads
       await initApp();
-      switchView('orders');  // Initialize view - show only Orders buttons
       showToast('Welcome, ' + role, 'success', 2000);
       return;
     }
@@ -796,23 +787,10 @@ function renderUnifiedView() {
   }
   var results = getUnifiedResults();
   var totalBill = 0, totalPaid = 0;
-  var seenMemos = {};
-
   results.forEach(function(r) {
     var K = r._type === 'order' ? DK : SHEET_KEYS;
     totalBill += parseFloat(r[K.salePrice]) || 0;
-
-    var memo = r._type === 'order' ? r[DK.memoNo] : r[SHEET_KEYS.memoNo];
-    if (memo) {
-      if (!seenMemos[memo]) {
-        seenMemos[memo] = true;
-        var log = [];
-        try { log = JSON.parse(r[K.paymentLog] || '[]'); } catch(e) {}
-        totalPaid += log.reduce(function(s, p) { return s + (parseFloat(p.amount) || 0); }, 0);
-      }
-    } else {
-      totalPaid += parseFloat(r[K.amountPaid]) || 0;
-    }
+    totalPaid += parseFloat(r[K.amountPaid]) || 0;
   });
   var balance = totalBill - totalPaid;
   var status = totalBill === 0 ? 'Not Sold' : (totalPaid >= totalBill ? 'Paid' : (totalPaid > 0 ? 'Partial' : 'Unpaid'));
