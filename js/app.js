@@ -32,6 +32,15 @@ window.showApp = function(role) {
   var isStaff = ROLE === 'staff';
   var isSeller = ROLE === 'seller';
   var isCustomer = ROLE === 'customer';
+  var newOrderBtn = document.getElementById('newOrderBtn');
+  var receivePaymentBtn = document.getElementById('receivePaymentBtn');
+  var newTradeBtn = document.getElementById('newTradeBtn');
+  var newExpenseBtn = document.getElementById('newExpenseBtn');
+  if (newOrderBtn) newOrderBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
+  if (receivePaymentBtn) receivePaymentBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
+  if (newTradeBtn) newTradeBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
+  if (newExpenseBtn) newExpenseBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
+
   document.body.classList.remove('staff-role', 'seller-role', 'customer-role');
   if (isStaff) document.body.classList.add('staff-role');
   else if (isSeller) document.body.classList.add('seller-role');
@@ -46,9 +55,9 @@ window.checkStoredAuth = function() {
     if (user) {
       ROLE = savedRole;
       showApp(savedRole);
-      switchView('orders');  // Set correct buttons immediately
       if (typeof initApp === 'function') {
         await initApp();
+        switchView('orders');  // Initialize view - show only Orders buttons
       }
     }
   });
@@ -91,8 +100,8 @@ window.login = async function() {
       }
 
       showApp(role);
-      switchView('orders');  // Set correct buttons BEFORE data loads
       await initApp();
+      switchView('orders');  // Initialize view - show only Orders buttons
       showToast('Welcome, ' + role, 'success', 2000);
       return;
     }
@@ -268,22 +277,72 @@ function renderAll() {
     return;
   }
 
+  // ── RESTORE NORMAL VIEW (after leaving unified mode) ──
   $('headerStats').style.display = 'flex';
 
+  // Re-activate correct tab button
+  $('ordersViewBtn').classList.toggle('active', currentView === 'orders');
+  $('tradingViewBtn').classList.toggle('active', currentView === 'trading');
+  $('expensesViewBtn').classList.toggle('active', currentView === 'expenses');
+
+  // Hide everything first, then show only current view
+  ['ordersTable','tradingTable','expensesTable'].forEach(function(id) {
+    var el = $(id); if (el) el.style.display = 'none';
+  });
+  ['kpiGrid','tradeKpiGrid','expenseKpiGrid'].forEach(function(id) {
+    var el = $(id); if (el) el.style.display = 'none';
+  });
+  ['paginationBar','tradePaginationBar','expensePaginationBar'].forEach(function(id) {
+    var el = $(id); if (el) el.style.display = 'none';
+  });
+  ['cardList','tradeCardList','expenseCardList'].forEach(function(id) {
+    var el = $(id); if (el) el.classList.remove('active');
+  });
+
   if (currentView === 'orders') {
+    $('ordersTable').style.display = 'table';
+    $('kpiGrid').style.display = 'grid';
+    $('paginationBar').style.display = 'flex';
+    $('cardList').classList.add('active');
     renderKPIs();
     renderTable();
     renderPagination();
     populateFilters();
   } else if (currentView === 'trading') {
+    $('tradingTable').style.display = 'table';
+    $('tradeKpiGrid').style.display = 'grid';
+    $('tradePaginationBar').style.display = 'flex';
+    $('tradeCardList').classList.add('active');
     renderTradeKPIs();
     renderTradeTable();
     renderTradePagination();
   } else if (currentView === 'expenses') {
+    $('expensesTable').style.display = 'table';
+    $('expenseKpiGrid').style.display = 'grid';
+    $('expensePaginationBar').style.display = 'flex';
+    $('expenseCardList').classList.add('active');
     renderExpenseKPIs();
     renderExpenseTable();
     renderExpensePagination();
   }
+
+  // Filter bar visibility
+  var goldWrap = $('goldRateInput');
+  if (goldWrap && goldWrap.parentElement) {
+    goldWrap.parentElement.style.display = (currentView === 'orders') ? 'flex' : 'none';
+  }
+  var rateNote = $('rateNote');
+  if (rateNote) rateNote.style.display = (currentView === 'orders') ? '' : 'none';
+
+  ['filterSoldTo','filterMemoNo','filterPaymentStatus'].forEach(function(id) {
+    var el = $(id); if (el) el.style.display = (currentView === 'expenses') ? 'none' : '';
+  });
+  ['filterExpenseCategory','filterExpenseSeller'].forEach(function(id) {
+    var el = $(id); if (el) el.style.display = (currentView === 'expenses') ? '' : 'none';
+  });
+
+  $('receivePaymentBtn').style.display = (ROLE !== 'customer' && currentView !== 'expenses') ? 'inline-flex' : 'none';
+
   equalizeColumnWidths();
   updateSearchUI();
 }
@@ -467,6 +526,7 @@ function populateFilters() {
 }
 
 /* ============ GOLD RATE ============ */
+var goldRateDebounce;
 $('goldRateInput').addEventListener('input', function() {
   var val = parseFloat(this.value);
   if (!isNaN(val) && val > 0) {
@@ -474,17 +534,7 @@ $('goldRateInput').addEventListener('input', function() {
     window.GOLD_RATE = val;
     renderAll();
   }
-});
-
-var goldRateDebounce;
-$('goldRateInput').addEventListener('input', function() {
-  var val = parseFloat(this.value);
-  if (!isNaN(val) && val > 0) {
-    GOLD_RATE = val;
-    window.GOLD_RATE = val;
-    renderAll();  // Live preview only — fast, no Firebase write
-  }
-  // Debounce the Firebase sync
+  // Debounce the Firebase sync — only write after user stops typing
   clearTimeout(goldRateDebounce);
   goldRateDebounce = setTimeout(async function() {
     var finalVal = parseFloat($('goldRateInput').value);
@@ -495,8 +545,9 @@ $('goldRateInput').addEventListener('input', function() {
       try { await window.saveSettings(finalVal); } catch(e) { console.error('Failed to save gold rate setting', e); }
       await batchUpdateGoldRate(finalVal);
     }
-  }, 800); // wait 800ms after user stops typing
+  }, 800);
 });
+
 async function batchUpdateGoldRate(newRate) {
   var unsold = ORDERS.filter(function(r) {
     return (r[DK.paymentStatus] || 'Not Sold').trim() === 'Not Sold';
