@@ -67,7 +67,6 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5qUJFlQzXvpn_
 // the instance is already hot.
 (function warmUp() {
   // Use the customer password so it completes auth successfully
-  jsonp({ action: 'auth', pass: 'qwertyuiop' }, { retries: 0, timeoutMs: 40000 })
     .then(() => console.log('Warmup OK'))
     .catch(() => {}); // ignore errors — this is just a wake-up call
 })();
