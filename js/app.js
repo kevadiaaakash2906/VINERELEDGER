@@ -476,17 +476,27 @@ $('goldRateInput').addEventListener('input', function() {
   }
 });
 
-$('goldRateInput').addEventListener('change', async function() {
+var goldRateDebounce;
+$('goldRateInput').addEventListener('input', function() {
   var val = parseFloat(this.value);
   if (!isNaN(val) && val > 0) {
     GOLD_RATE = val;
     window.GOLD_RATE = val;
-    localStorage.setItem('vinere_gold_rate', val);
-    try { await window.saveSettings(val); } catch(e) { console.error('Failed to save gold rate setting', e); }
-    await batchUpdateGoldRate(val);
+    renderAll();  // Live preview only — fast, no Firebase write
   }
+  // Debounce the Firebase sync
+  clearTimeout(goldRateDebounce);
+  goldRateDebounce = setTimeout(async function() {
+    var finalVal = parseFloat($('goldRateInput').value);
+    if (!isNaN(finalVal) && finalVal > 0) {
+      GOLD_RATE = finalVal;
+      window.GOLD_RATE = finalVal;
+      localStorage.setItem('vinere_gold_rate', finalVal);
+      try { await window.saveSettings(finalVal); } catch(e) { console.error('Failed to save gold rate setting', e); }
+      await batchUpdateGoldRate(finalVal);
+    }
+  }, 800); // wait 800ms after user stops typing
 });
-
 async function batchUpdateGoldRate(newRate) {
   var unsold = ORDERS.filter(function(r) {
     return (r[DK.paymentStatus] || 'Not Sold').trim() === 'Not Sold';
