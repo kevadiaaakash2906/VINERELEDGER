@@ -3,7 +3,7 @@
 // ============================================================
 
 // ---------- Configure this ----------
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5qUJFlQzXvpn_9okCy_MuadlWuS5V90ed_I8nmoHR06azhxTyP4h2i6xULDwgWf6K4w/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzvZLV5g4s2Zr9B5fHwAnTjc8iZv6gxlGV5GGEYy-96J7dpYPXSEkKIwMdsP5hDtVjIdg/exec';
 // -------------------------------------
 
   // ---------- JSONP helper ----------(₹/g)
