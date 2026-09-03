@@ -66,7 +66,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzvZLV5g4s2Zr9B
 // so by the time the user types their password and clicks Unlock,
 // the instance is already hot.
 (function warmUp() {
-  // Use the customer password so it completes auth successfully
+  jsonp({ action: 'login', password: 'customer' })
     .then(() => console.log('Warmup OK'))
     .catch(() => {}); // ignore errors — this is just a wake-up call
 })();
