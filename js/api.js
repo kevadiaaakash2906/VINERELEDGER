@@ -6,7 +6,7 @@
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzvZLV5g4s2Zr9B5fHwAnTjc8iZv6gxlGV5GGEYy-96J7dpYPXSEkKIwMdsP5hDtVjIdg/exec';
 // -------------------------------------
 
-  // ---------- JSONP helper ----------(₹/g)
+  // ---------- JSONP helper ----------
   // Loads data via a <script> tag instead of fetch(). Script tags are not
   // subject to CORS, which sidesteps Apps Script's unreliable CORS headers
   // that were blocking fetch() from this GitHub Pages domain.
@@ -62,6 +62,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzvZLV5g4s2Zr9B
       throw lastErr;
     })();
   }
+
 // Warm up the Apps Script instance as soon as the login page loads,
 // so by the time the user types their password and clicks Unlock,
 // the instance is already hot.
