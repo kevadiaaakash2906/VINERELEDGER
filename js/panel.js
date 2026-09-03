@@ -126,9 +126,9 @@ window.openOrderPanel = function(id) {
   var overlay = $('overlay');
 
   // Reset fields
-  ['f_customer','f_style','f_date','f_grossWt','f_netWt','f_diaQty','f_inCt',
+  ['f_customer','f_style','f_jewelryType','f_date','f_grossWt','f_netWt','f_diaQty','f_inCt',
    'f_colourStone','f_multiplier','f_diamAmount','f_lCharges','f_memoNo',
-   'f_soldTo','f_salePrice','f_dateSold'].forEach(function(fid) { $(fid).value = ''; });
+   'f_soldTo','f_salePrice','f_dateSold','f_diamondShape'].forEach(function(fid) { var el = $(fid); if (el) el.value = ''; });
   $('f_multiplier').value = '0.595';
   $('f_lCharges').value = '900';
   if ($('f_flatLabor')) $('f_flatLabor').checked = false;
@@ -179,6 +179,8 @@ window.openOrderPanel = function(id) {
     }
     $('f_customer').value = order[DK.customer] || '';
     $('f_style').value = order[DK.style] || '';
+    $('f_jewelryType').value = order[DK.jewelryType] || '';
+    $('f_diamondShape').value = order[DK.diamondShape] || '';
     $('f_date').value = order[DK.date] || '';
     $('f_grossWt').value = order[DK.grossWt] || '';
     $('f_netWt').value = order[DK.netWt] || '';
@@ -523,6 +525,8 @@ $('saveBtn').addEventListener('click', async function() {
   var data = {};
   data[DK.customer] = $('f_customer').value.trim().toUpperCase();
   data[DK.style] = $('f_style').value.trim().toUpperCase();
+  data[DK.jewelryType] = $('f_jewelryType').value;
+  data[DK.diamondShape] = $('f_diamondShape').value;
   data[DK.date] = $('f_date').value;
   data[DK.grossWt] = $('f_grossWt').value || '';
   data[DK.netWt] = $('f_netWt').value;
@@ -573,6 +577,39 @@ $('saveBtn').addEventListener('click', async function() {
       if (memoNo) {
         await syncMemoPayments(memoNo, currentInstallments, editingId);
       }
+
+      // ── BULK SYNC: update Jewelry Type & Diamond Shape for all orders with same Style No. ──
+      var styleNo = data[DK.style];
+      var newType = data[DK.jewelryType];
+      var newShape = data[DK.diamondShape];
+      if (styleNo) {
+        var matchingOrders = ORDERS.filter(function(o) {
+          return o[DK.style] === styleNo && o._id !== editingId;
+        });
+        var syncCount = 0;
+        for (var i = 0; i < matchingOrders.length; i++) {
+          var mo = matchingOrders[i];
+          var needsUpdate = false;
+          var updateData = {};
+          if (newType && mo[DK.jewelryType] !== newType) {
+            updateData[DK.jewelryType] = newType;
+            needsUpdate = true;
+          }
+          if (newShape && mo[DK.diamondShape] !== newShape) {
+            updateData[DK.diamondShape] = newShape;
+            needsUpdate = true;
+          }
+          if (needsUpdate) {
+            updateData[DK.sr] = mo[DK.sr];
+            await window.updateOrder(mo._id, updateData);
+            syncCount++;
+          }
+        }
+        if (syncCount > 0) {
+          showToast('Synced ' + syncCount + ' other order(s) with style "' + styleNo + '"', 'info');
+        }
+      }
+      // ── END BULK SYNC ──
 
       showToast('Order #' + data[DK.sr] + ' updated successfully', 'success');
     } else {

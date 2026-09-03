@@ -127,13 +127,14 @@ $('passInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') 
 
 /* ============ DATA KEYS ============ */
 var DK = {
-  sr: 'Sr. No.', customer: 'CUSTOMER', style: 'Style No.', date: 'Date',
+  sr: 'Sr. No.', customer: 'CUSTOMER', style: 'Style No.', jewelryType: 'Jewelry Type', date: 'Date',
   grossWt: 'Gross Wt', diaQty: 'Dia Qty', inCt: 'IN CT', colourStone: 'COLOUR STONE',
   netWt: 'Net Wt', multiplier: 'Multiplier', pgWt: 'Pg Wt', goldAmt: 'Gold Amount',
   diamAmount: 'Diam Amount', lCharges: 'L CHARGES', laborAmt: 'Labor Amount',
   subTotal: 'SUB TOTAL', usd: '$', soldTo: 'Sold To', salePrice: 'Sale Price',
   dateSold: 'Date Sold', amountPaid: 'Amount Paid', balanceDue: 'Balance Due',
-  paymentStatus: 'Payment Status', paymentLog: 'Payment Log', memoNo: 'Memo No.'
+  paymentStatus: 'Payment Status', paymentLog: 'Payment Log', memoNo: 'Memo No.',
+  diamondShape: 'Diamond Shape'
 };
 
 function getField(row, key) {
@@ -354,7 +355,7 @@ function equalizeColumnWidths() {
   var cols = table.querySelectorAll('colgroup col');
   if (!cols.length) return;
 
-  var baseWidths = [5, 7, 10, 8, 6, 6, 6, 9, 5, 7, 11, 8, 12];
+  var baseWidths = [5, 7, 10, 8, 6, 6, 6, 9, 5, 7, 10, 8, 10, 7];
   var total = baseWidths.reduce(function(s, w) { return s + w; }, 0);
 
   cols.forEach(function(col, i) {
