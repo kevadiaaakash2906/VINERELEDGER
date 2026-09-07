@@ -208,7 +208,16 @@
           </div>
           <div class="field">
             <label>Diamond Shape</label>
-            <select id="f_diamondShape">
+            <div class="field-row">
+              <select id="f_diamondShapeBase">
+                <option value="">Select shape…</option>
+              </select>
+              <select id="f_diamondShapeVariant" disabled>
+                <option value="">Select shape first…</option>
+              </select>
+            </div>
+            <!-- Hidden: keeps the real stored value; panel.js/table.js read/write this id unchanged -->
+            <select id="f_diamondShape" style="display:none">
               <option value="">Select shape…</option>
               <option value="Round">Round</option>           
               <option value="Round Bezel">Round Bezel</option>
@@ -423,6 +432,7 @@
 
 <!-- App scripts — load order matters -->
 <script src="js/utils.js?v=3"></script>
+<script src="js/diamond-shape.js?v=1"></script>
 <script src="js/api.js?v=3"></script>
 <script src="js/firebase.js?v=3"></script>
 <script src="js/app.js?v=3"></script>
