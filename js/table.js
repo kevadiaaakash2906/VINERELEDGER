@@ -659,7 +659,7 @@ function renderExpenseTable() {
     var msg = window.currentSearchQuery
       ? 'No expenses match "' + escapeHtml(window.currentSearchQuery) + '"'
       : 'No expenses found';
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-dim)">' + msg + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-dim)">' + msg + '</td></tr>';
     renderExpenseCards([]);
     return;
   }
@@ -673,8 +673,6 @@ function renderExpenseTable() {
       '<td><span class="type-badge" style="background:var(--md-surface-variant);color:var(--md-on-surface);">' + escapeHtml(r[K.category] || 'Misc') + '</span></td>' +
       '<td>' + highlightText(r[K.description] || '', q) + '</td>' +
       '<td class="num">$' + fmtMoney(amount) + '</td>' +
-      '<td>' + highlightText(r[K.seller] || '', q) + '</td>' +
-      '<td>' + escapeHtml(r[K.notes] || '') + '</td>' +
       '</tr>';
   }).join('');
 

@@ -7,15 +7,29 @@ var currentInstallments = [];
 var readOnly = false;
 var panelGoldRate = null;   // snapshot for this editing session — never changes while panel is open
 /* ============ TABS ============ */
-document.querySelectorAll('.panel-tab').forEach(function(tab) {
-  tab.addEventListener('click', function() {
-    document.querySelectorAll('.panel-tab').forEach(function(t) { t.classList.remove('active'); });
-    document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
-    tab.classList.add('active');
-    var target = document.getElementById(tab.dataset.tab);
-    if (target) target.classList.add('active');
+// Scoped per .panel-tabs container so multiple tabbed panels (Order, Trading)
+// don't clobber each other's active state when both exist in the DOM.
+document.querySelectorAll('.panel-tabs').forEach(function(tabBar) {
+  var tabs = tabBar.querySelectorAll('.panel-tab');
+  var panelRoot = tabBar.closest('#panel, #tradePanel, #expensePanel') || document;
+  tabs.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      tabs.forEach(function(t) { t.classList.remove('active'); });
+      panelRoot.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+      tab.classList.add('active');
+      var target = document.getElementById(tab.dataset.tab);
+      if (target) target.classList.add('active');
+    });
   });
 });
+
+function activateFirstTab(panelEl) {
+  var tabs = panelEl.querySelectorAll('.panel-tab');
+  var contents = panelEl.querySelectorAll('.tab-content');
+  if (!tabs.length) return;
+  tabs.forEach(function(t, i) { t.classList.toggle('active', i === 0); });
+  contents.forEach(function(c, i) { c.classList.toggle('active', i === 0); });
+}
 /* ============ MEMO HELPERS ============ */
 function getMemoOrders(memoNo) {
   if (!memoNo) return [];
@@ -124,6 +138,7 @@ window.openOrderPanel = function(id) {
 
   var panel = $('panel');
   var overlay = $('overlay');
+  activateFirstTab(panel);
 
   // Reset fields
   ['f_customer','f_style','f_jewelryType','f_date','f_grossWt','f_netWt','f_diaQty','f_inCt',
@@ -198,22 +213,6 @@ window.openOrderPanel = function(id) {
     $('f_memoNo').value = order[DK.memoNo] || '';
     $('f_soldTo').value = order[DK.soldTo] || '';
 
-    // Memo banner
-    var memoNoVal = order[DK.memoNo];
-    if (memoNoVal && memoBanner) {
-      var mOrders = getMemoOrders(memoNoVal);
-      var mTrades = getMemoTrades(memoNoVal);
-      var mBill = mOrders.reduce(function(s,o){return s+(parseFloat(o[DK.salePrice])||0);},0) +
-                  mTrades.reduce(function(s,t){return s+(parseFloat(t[SHEET_KEYS.salePrice])||0);},0);
-      var mPaid = currentInstallments.reduce(function(s,i){return s+(parseFloat(i.amount)||0);},0);
-      var mBal = mBill - mPaid;
-      memoBanner.innerHTML = '<div style="font-weight:600;margin-bottom:2px;">Memo ' + escapeHtml(memoNoVal) + '</div>' +
-        '<div class="memo-row"><span>Items</span><strong>' + (mOrders.length + mTrades.length) + '</strong></div>' +
-        '<div class="memo-row"><span>Total Bill</span><strong>$' + fmtMoney(mBill) + '</strong></div>' +
-        '<div class="memo-row"><span>Total Paid</span><strong>$' + fmtMoney(mPaid) + '</strong></div>' +
-        '<div class="memo-row"><span>Balance</span><strong style="color:' + (mBal>0?'var(--error)':'var(--success)') + '">$' + fmtMoney(Math.abs(mBal)) + '</strong></div>';
-      memoBanner.style.display = 'block';
-    }
     if (!order[DK.soldTo]) {
       var memoNo = order[DK.memoNo];
       if (memoNo) {
@@ -338,6 +337,7 @@ function updatePreview() {
   $('prev_amountPaid').textContent = totalPaid ? '$' + fmtMoney(totalPaid) : '$0';
   $('prev_balanceDue').textContent = salePrice ? '$' + fmtMoney(balance) : '—';
   $('prev_paymentStatus').textContent = status;
+  renderRemainingBalanceTag('f_remainingBalance', memoNoPreview ? memoTotalBillPreview : salePrice, totalPaid);
   updateMemoSummary();
 
   // Visual indicator of which rate is being used
@@ -356,8 +356,33 @@ function updatePreview() {
   }
 }
 
+/* ============ MEMO BANNER (top, header area) ============ */
+function updateMemoBanner() {
+  var memoBanner = $('panelMemoBanner');
+  if (!memoBanner) return;
+  var memoNoVal = $('f_memoNo').value.trim().toUpperCase();
+  if (!memoNoVal) { memoBanner.style.display = 'none'; memoBanner.innerHTML = ''; return; }
+
+  var mOrders = getMemoOrders(memoNoVal);
+  var mTrades = getMemoTrades(memoNoVal);
+  var mBill = mOrders.reduce(function(s,o){return s+(parseFloat(o[DK.salePrice])||0);},0) +
+              mTrades.reduce(function(s,t){return s+(parseFloat(t[SHEET_KEYS.salePrice])||0);},0);
+  var mPaid = currentInstallments.reduce(function(s,i){return s+(parseFloat(i.amount)||0);},0);
+  var mBal = mBill - mPaid;
+
+  memoBanner.innerHTML = '<div class="memo-compact-row">' +
+    '<span class="memo-compact-title">Memo ' + escapeHtml(memoNoVal) + '</span>' +
+    '<span class="memo-compact-stat"><span class="label">Items</span><span class="value">' + (mOrders.length + mTrades.length) + '</span></span>' +
+    '<span class="memo-compact-stat"><span class="label">Bill</span><span class="value">$' + fmtMoney(mBill) + '</span></span>' +
+    '<span class="memo-compact-stat"><span class="label">Paid</span><span class="value">$' + fmtMoney(mPaid) + '</span></span>' +
+    '<span class="memo-compact-stat"><span class="label">Balance</span><span class="value" style="color:' + (mBal>0?'var(--error)':'var(--success)') + '">$' + fmtMoney(Math.abs(mBal)) + '</span></span>' +
+    '</div>';
+  memoBanner.style.display = 'block';
+}
+
 /* ============ MEMO SUMMARY ============ */
 function updateMemoSummary() {
+  updateMemoBanner();
   var memoNo = $('f_memoNo').value.trim().toUpperCase();
   var el = $('memoSummary');
   if (!memoNo) { el.style.display = 'none'; el.textContent = ''; return; }
