@@ -86,9 +86,11 @@ function closeTradePanel() {
 /* ============ MEMO BANNER (top, header area) ============ */
 function updateTradeMemoBanner() {
   var memoBanner = $('tradePanelMemoBanner');
-  if (!memoBanner) return;
   var memoNoVal = $('t_memoNo').value.trim().toUpperCase();
-  if (!memoNoVal) { memoBanner.style.display = 'none'; memoBanner.innerHTML = ''; return; }
+  if (!memoNoVal) {
+    if (memoBanner) { memoBanner.style.display = 'none'; memoBanner.innerHTML = ''; }
+    return null;
+  }
 
   var mOrders = getMemoOrders(memoNoVal);
   var mTrades = getMemoTrades(memoNoVal);
@@ -97,27 +99,38 @@ function updateTradeMemoBanner() {
   var mPaid = getAggregatedPaymentLog(memoNoVal).reduce(function(s,i){return s+(parseFloat(i.amount)||0);},0);
   var mBal = mBill - mPaid;
 
-  memoBanner.innerHTML = '<div class="memo-compact-row">' +
-    '<span class="memo-compact-title">Memo ' + escapeHtml(memoNoVal) + '</span>' +
-    '<span class="memo-compact-stat"><span class="label">Items</span><span class="value">' + (mOrders.length + mTrades.length) + '</span></span>' +
-    '<span class="memo-compact-stat"><span class="label">Bill</span><span class="value">$' + fmtMoney(mBill) + '</span></span>' +
-    '<span class="memo-compact-stat"><span class="label">Paid</span><span class="value">$' + fmtMoney(mPaid) + '</span></span>' +
-    '<span class="memo-compact-stat"><span class="label">Balance</span><span class="value" style="color:' + (mBal>0?'var(--error)':'var(--success)') + '">$' + fmtMoney(Math.abs(mBal)) + '</span></span>' +
-    '</div>';
-  memoBanner.style.display = 'block';
+  if (memoBanner) {
+    memoBanner.innerHTML = '<div class="memo-compact-row">' +
+      '<span class="memo-compact-title">Memo ' + escapeHtml(memoNoVal) + '</span>' +
+      '<span class="memo-compact-stat"><span class="label">Items</span><span class="value">' + (mOrders.length + mTrades.length) + '</span></span>' +
+      '<span class="memo-compact-stat"><span class="label">Bill</span><span class="value">$' + fmtMoney(mBill) + '</span></span>' +
+      '<span class="memo-compact-stat"><span class="label">Paid</span><span class="value">$' + fmtMoney(mPaid) + '</span></span>' +
+      '<span class="memo-compact-stat"><span class="label">Balance</span><span class="value" style="color:' + (mBal>0?'var(--error)':'var(--success)') + '">$' + fmtMoney(Math.abs(mBal)) + '</span></span>' +
+      '</div>';
+    memoBanner.style.display = 'block';
+  }
+
+  return { bill: mBill, paid: mPaid, balance: mBal };
 }
 
 function updateTradePreview() {
-  updateTradeMemoBanner();
+  var memoInfo = updateTradeMemoBanner();
   var purchase = parseFloat($('t_purchasePrice').value) || 0;
   var sale = parseFloat($('t_salePrice').value) || 0;
   var profit = sale ? sale - purchase : 0;
 
   var totalPaid = currentTradeInstallments.reduce(function(s, i) { return s + (parseFloat(i.amount) || 0); }, 0);
-  var balance = sale ? sale - totalPaid : 0;
+
+  // For a memo item, currentTradeInstallments holds the WHOLE memo's
+  // installments (via getAggregatedPaymentLog), so it must be compared
+  // against the memo's combined bill — not this single item's own
+  // salePrice — or every item but the last-paid one looks "overpaid".
+  var billForComparison = memoInfo ? memoInfo.bill : sale;
+  var balance = billForComparison ? billForComparison - totalPaid : 0;
+
   var status = 'Not Sold';
   if (sale) {
-    if (totalPaid >= sale) status = 'Paid';
+    if (totalPaid >= billForComparison) status = 'Paid';
     else if (totalPaid > 0) status = 'Partial';
     else status = 'Unpaid';
   }
@@ -127,7 +140,7 @@ function updateTradePreview() {
   $('t_prev_amountPaid').textContent = '$' + fmtMoney(totalPaid);
   $('t_prev_balanceDue').textContent = sale ? '$' + fmtMoney(balance) : '—';
   $('t_prev_paymentStatus').textContent = status;
-  renderRemainingBalanceTag('t_remainingBalance', sale, totalPaid);
+  renderRemainingBalanceTag('t_remainingBalance', billForComparison, totalPaid);
 
   var badge = $('tradePanelStatusBadge');
   if (badge) {
