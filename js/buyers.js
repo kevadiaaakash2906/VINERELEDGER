@@ -11,10 +11,24 @@ window.refreshBuyerDatalist = function() {
   list.innerHTML = unique.map(function(n) { return '<option value="' + escapeHtml(n) + '">'; }).join('');
 };
 
+// Normalizes a buyer name for comparison: collapses non-breaking spaces,
+// zero-width characters, and repeated whitespace into a single regular
+// space, so two names that render identically but differ by an invisible
+// character (a common side effect of copy-pasting from spreadsheets) are
+// still recognized as the same buyer.
+function normalizeBuyerName(name) {
+  return (name || '')
+    .normalize('NFKC')
+    .replace(/[\u00A0\u200B\u200C\u200D\uFEFF]/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
 function findBuyerByName(name) {
   if (!name) return null;
-  var norm = name.trim().toLowerCase();
-  return BUYERS.find(function(b) { return (b[BUYER_KEYS.name] || '').trim().toLowerCase() === norm; }) || null;
+  var norm = normalizeBuyerName(name);
+  return BUYERS.find(function(b) { return normalizeBuyerName(b[BUYER_KEYS.name]) === norm; }) || null;
 }
 
 // Called when a Sold To field loses focus: link to an existing buyer by
@@ -80,11 +94,11 @@ async function mergeBuyerInto(sourceId, targetName) {
   if (!target) throw new Error('No existing buyer found with that name');
   if (target._id === sourceId) throw new Error('Choose a different buyer to merge into');
 
-  var sourceName = (source[BUYER_KEYS.name] || '').trim().toLowerCase();
+  var sourceName = normalizeBuyerName(source[BUYER_KEYS.name]);
   var targetNameFinal = target[BUYER_KEYS.name];
 
-  var matchingOrders = ORDERS.filter(function(o) { return (o[DK.soldTo] || '').trim().toLowerCase() === sourceName; });
-  var matchingTrades = TRADING.filter(function(t) { return (t[SHEET_KEYS.soldTo] || '').trim().toLowerCase() === sourceName; });
+  var matchingOrders = ORDERS.filter(function(o) { return normalizeBuyerName(o[DK.soldTo]) === sourceName; });
+  var matchingTrades = TRADING.filter(function(t) { return normalizeBuyerName(t[SHEET_KEYS.soldTo]) === sourceName; });
 
   for (var i = 0; i < matchingOrders.length; i++) {
     var o = matchingOrders[i];
@@ -121,7 +135,7 @@ async function mergeBuyerInto(sourceId, targetName) {
 window.mergeExactDuplicateBuyers = async function() {
   var groups = {};
   BUYERS.forEach(function(b) {
-    var key = (b[BUYER_KEYS.name] || '').trim().toLowerCase();
+    var key = normalizeBuyerName(b[BUYER_KEYS.name]);
     if (!key) return;
     (groups[key] = groups[key] || []).push(b);
   });
@@ -141,8 +155,8 @@ window.mergeExactDuplicateBuyers = async function() {
 
 /* ============ BUYER STATS (reuses insights.js's memo-share helper) ============ */
 function getBuyerStats(name) {
-  var orders = ORDERS.filter(function(o) { return (o[DK.soldTo] || '').trim().toLowerCase() === name.trim().toLowerCase(); });
-  var trades = TRADING.filter(function(t) { return (t[SHEET_KEYS.soldTo] || '').trim().toLowerCase() === name.trim().toLowerCase(); });
+  var orders = ORDERS.filter(function(o) { return normalizeBuyerName(o[DK.soldTo]) === normalizeBuyerName(name); });
+  var trades = TRADING.filter(function(t) { return normalizeBuyerName(t[SHEET_KEYS.soldTo]) === normalizeBuyerName(name); });
 
   var totalBill = 0, totalCollected = 0, totalOutstanding = 0, lastDate = null;
 
@@ -193,9 +207,7 @@ function renderBuyerList(filterQuery) {
   container.innerHTML = rows.map(function(b) {
     var name = b[BUYER_KEYS.name] || '(unnamed)';
     var stats = getBuyerStats(name);
-    var dueHtml = stats.totalOutstanding > 0.01
-      ? '<div class="buyer-row-stat"><span class="label">Due</span><span class="value due">$' + fmtMoney(stats.totalOutstanding) + '</span></div>'
-      : '';
+    var hasDue = stats.totalOutstanding > 0.01;
     return '<div class="buyer-row">' +
       '<div class="buyer-row-identity">' +
         '<span class="soldto-link buyer-row-name" data-customer="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>' +
@@ -204,7 +216,7 @@ function renderBuyerList(filterQuery) {
       '<div class="buyer-row-stats">' +
         '<div class="buyer-row-stat"><span class="label">Items</span><span class="value">' + stats.itemCount + '</span></div>' +
         '<div class="buyer-row-stat"><span class="label">Billed</span><span class="value">$' + fmtMoney(stats.totalBill) + '</span></div>' +
-        dueHtml +
+        '<div class="buyer-row-stat"><span class="label">Due</span><span class="value' + (hasDue ? ' due' : ' empty') + '">' + (hasDue ? '$' + fmtMoney(stats.totalOutstanding) : '—') + '</span></div>' +
       '</div>' +
       '<button class="btn secondary small" data-edit-buyer="' + b._id + '">Edit</button>' +
       '</div>';
