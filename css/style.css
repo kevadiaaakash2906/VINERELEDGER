@@ -630,6 +630,13 @@ main {
   transform: translateY(-2px);
 }
 
+.filter-bar-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
 .kpi-label {
   font-size: 14px;
   font-weight: 500;
@@ -728,6 +735,48 @@ main {
 #ordersTable tbody tr:active td,
 #tradingTable tbody tr:active td {
   background: rgba(26,115,232,0.06);
+}
+
+/* ============================================
+   STICKY FIRST/LAST COLUMNS
+   Keeps the row identifier (Sr.) and the outcome column
+   (Status / P/L) visible while scrolling through the
+   wide middle columns, instead of losing all context.
+   ============================================ */
+.sticky-col-left {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+.sticky-col-right {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+}
+
+thead .sticky-col-left,
+thead .sticky-col-right {
+  z-index: 3;
+  background: var(--md-surface-variant);
+}
+
+tbody .sticky-col-left,
+tbody .sticky-col-right {
+  background: var(--md-surface);
+}
+
+/* Hover/active states already restyle td backgrounds via an ID-scoped
+   selector, which naturally wins over the plain-class rules above since
+   an ID selector always outranks a class selector — so the sticky cells
+   still pick up the hover tint correctly without extra rules here. */
+
+.sticky-col-left {
+  box-shadow: 2px 0 4px -2px rgba(0,0,0,0.12);
+}
+
+.sticky-col-right {
+  box-shadow: -2px 0 4px -2px rgba(0,0,0,0.12);
 }
 /* Expenses table */
 #expensesTable {
@@ -1063,18 +1112,23 @@ main {
 /* ============================================
    PANELS (Side Sheets)
    ============================================ */
-#overlay, #tradeOverlay, #expenseOverlay, #paymentSearchOverlay {
-  display: none;
+#overlay, #tradeOverlay, #expenseOverlay, #paymentSearchOverlay,
+.overlay-fade {
   position: fixed;
   inset: 0;
   background: rgba(32,33,36,0.32);
   backdrop-filter: blur(4px);
   z-index: 200;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 200ms var(--ease-standard), visibility 0s linear 200ms;
 }
 
-#overlay.open, #tradeOverlay.open, #expenseOverlay.open {
+#overlay.open, #tradeOverlay.open, #expenseOverlay.open, #paymentSearchOverlay.open,
+.overlay-fade.open {
   opacity: 1;
   visibility: visible;
+  transition: opacity 200ms var(--ease-standard), visibility 0s linear 0s;
 }
 
 #panel, #tradePanel, #expensePanel, #paymentSearchModal {
@@ -1745,17 +1799,11 @@ input[type="checkbox"] {
    Reuses the same visual language as #panel/#tradePanel
    (see .panel-head above) under new class names, so it
    doesn't need to be added to those panels' shared,
-   multi-selector CSS rules.
+   multi-selector CSS rules. The backdrop itself reuses the
+   shared .overlay-fade rule (defined earlier) rather than
+   its own display:none toggle, so it fades in sync with
+   the panel's slide instead of popping instantly.
    ============================================ */
-.side-modal-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(32,33,36,0.32);
-  backdrop-filter: blur(4px);
-  z-index: 200;
-}
-
 .side-modal {
   position: fixed;
   top: 0;
@@ -1972,11 +2020,18 @@ input[type="checkbox"] {
 }
 
 /* Customer Profile can be opened FROM the Buyers or Insights panel, so it
-   needs to render above them rather than sharing their z-index. */
+   needs to render above them rather than sharing their z-index. Same for
+   the Buyer edit form, opened from within the Buyers list. */
 #customerProfileOverlay {
   z-index: 350;
 }
 #customerProfileModal {
+  z-index: 360;
+}
+#buyerFormOverlay {
+  z-index: 350;
+}
+#buyerFormModal {
   z-index: 360;
 }
 
