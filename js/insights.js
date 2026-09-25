@@ -209,22 +209,32 @@ function wireMemoLinks(container) {
 }
 window.wireMemoLinks = wireMemoLinks;
 
-/* ============ VENDOR PROFITABILITY ============ */
+/* ============ VENDOR PROFITABILITY ============
+   "Vendor" here means who you sold the item to (Sold To), not who
+   supplied it — combining both Orders and Trading, since both use the
+   same Sold To field to record the buyer. */
 
 function renderVendorReport() {
   var vendors = {};
-  TRADING.forEach(function(t) {
-    var vendor = (t[SHEET_KEYS.vendor] || 'Unknown').trim() || 'Unknown';
-    if (!vendors[vendor]) vendors[vendor] = { count: 0, sold: 0, invested: 0, sales: 0, profit: 0 };
-    var purchase = parseFloat(t[SHEET_KEYS.purchasePrice]) || 0;
-    var sale = parseFloat(t[SHEET_KEYS.salePrice]) || 0;
-    vendors[vendor].count++;
-    vendors[vendor].invested += purchase;
+
+  function addToVendor(name, cost, sale) {
+    var soldTo = (name || '').trim();
+    if (!soldTo) return; // no buyer yet (unsold item) — nothing to attribute
+    if (!vendors[soldTo]) vendors[soldTo] = { count: 0, sold: 0, invested: 0, sales: 0, profit: 0 };
+    vendors[soldTo].count++;
+    vendors[soldTo].invested += cost;
     if (sale) {
-      vendors[vendor].sales += sale;
-      vendors[vendor].profit += (sale - purchase);
-      vendors[vendor].sold++;
+      vendors[soldTo].sales += sale;
+      vendors[soldTo].profit += (sale - cost);
+      vendors[soldTo].sold++;
     }
+  }
+
+  TRADING.forEach(function(t) {
+    addToVendor(t[SHEET_KEYS.soldTo], parseFloat(t[SHEET_KEYS.purchasePrice]) || 0, parseFloat(t[SHEET_KEYS.salePrice]) || 0);
+  });
+  ORDERS.forEach(function(o) {
+    addToVendor(o[DK.soldTo], parseFloat(o[DK.usd]) || 0, parseFloat(o[DK.salePrice]) || 0);
   });
 
   var rows = Object.keys(vendors).map(function(v) {
@@ -236,7 +246,7 @@ function renderVendorReport() {
 
   var target = $('insightsVendorsTab');
   if (!rows.length) {
-    target.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim);">No trades recorded yet</div>';
+    target.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim);">No sold items yet</div>';
     return;
   }
 
@@ -257,6 +267,75 @@ function renderVendorReport() {
         '</tr>';
     }).join('') +
     '</tbody></table>';
+}
+
+/* ============ BUYER PROFITABILITY ============
+   Profit attributed to each BUYER ("Sold To"), combining Orders and
+   Trading — this is the counterpart to Vendor Profitability, which looks
+   at who items were sourced FROM. This looks at who they were sold TO. */
+
+function renderBuyerProfitability() {
+  var buyers = {};
+
+  function addToBuyer(name, cost, sale, sold) {
+    var buyer = (name || 'Unknown').trim() || 'Unknown';
+    if (!buyer || buyer === 'Unknown' && !sold) return; // skip blank Sold To on unsold items
+    if (!buyers[buyer]) buyers[buyer] = { count: 0, sold: 0, invested: 0, sales: 0, profit: 0 };
+    buyers[buyer].count++;
+    buyers[buyer].invested += cost;
+    if (sold) {
+      buyers[buyer].sales += sale;
+      buyers[buyer].profit += (sale - cost);
+      buyers[buyer].sold++;
+    }
+  }
+
+  ORDERS.forEach(function(o) {
+    var sale = parseFloat(o[DK.salePrice]) || 0;
+    if (!o[DK.soldTo] && !sale) return; // not sold, no buyer — nothing to attribute
+    addToBuyer(o[DK.soldTo], parseFloat(o[DK.usd]) || 0, sale, !!sale);
+  });
+  TRADING.forEach(function(t) {
+    var sale = parseFloat(t[SHEET_KEYS.salePrice]) || 0;
+    if (!t[SHEET_KEYS.soldTo] && !sale) return;
+    addToBuyer(t[SHEET_KEYS.soldTo], parseFloat(t[SHEET_KEYS.purchasePrice]) || 0, sale, !!sale);
+  });
+
+  var rows = Object.keys(buyers).map(function(b) {
+    var r = buyers[b];
+    r.buyer = b;
+    return r;
+  });
+  rows.sort(function(a, b) { return b.profit - a.profit; });
+
+  var target = $('insightsBuyersTab');
+  if (!target) return;
+  if (!rows.length) {
+    target.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim);">No sold items yet</div>';
+    return;
+  }
+
+  target.innerHTML =
+    '<table class="report-table"><thead><tr>' +
+    '<th>Buyer</th><th class="num">Items</th><th class="num">Sold</th>' +
+    '<th class="num">Cost</th><th class="num">Sales</th><th class="num">Profit</th>' +
+    '</tr></thead><tbody>' +
+    rows.map(function(r) {
+      return '<tr>' +
+        '<td><span class="soldto-link" data-customer="' + escapeHtml(r.buyer) + '">' + escapeHtml(r.buyer) + '</span></td>' +
+        '<td class="num">' + r.count + '</td>' +
+        '<td class="num">' + r.sold + '</td>' +
+        '<td class="num">$' + fmtMoney(r.invested) + '</td>' +
+        '<td class="num">$' + fmtMoney(r.sales) + '</td>' +
+        '<td class="num" style="color:' + (r.profit >= 0 ? 'var(--success)' : 'var(--error)') + '">' +
+        (r.profit >= 0 ? '+' : '-') + '$' + fmtMoney(Math.abs(r.profit)) + '</td>' +
+        '</tr>';
+    }).join('') +
+    '</tbody></table>';
+
+  target.querySelectorAll('.soldto-link').forEach(function(el) {
+    el.addEventListener('click', function() { window.openCustomerProfile(el.dataset.customer); });
+  });
 }
 
 /* ============ BEST SELLERS: JEWELRY TYPE / DIAMOND SHAPE ============ */
