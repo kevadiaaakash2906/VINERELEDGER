@@ -1,1032 +1,622 @@
-/* ============================================
-   VINÉRE — App Core
-   ============================================ */
-
-/* ============ AUTH / ROLE ============ */
-var PASSWORDS = {
-  staff:   '25f885fa451c3c6b024fe23dbf834ceb2be6361316010ef348e7777faa78634c',
-  seller:  'c60a26e1e8094121dae3acccdfdb1fffeb616bcb2e3ae68f6b18c336e6e031d7',
-  customer:'9a900403ac313ba27a1bc81f0932652b8020dac92c234d98fa0b06bf0040ecfd'
-};
-
-var ROLE = null;
-var USER_HASH = null;
-
-async function sha256(str) {
-  var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
-}
-
-/* ---------- Auto-login on load ---------- */
-window.showApp = function(role) {
-  ROLE = role;
-  var loginEl = document.getElementById('login');
-  var appEl = document.getElementById('app');
-  if (loginEl) loginEl.style.display = 'none';
-  if (appEl) {
-    appEl.style.display = 'block';
-    document.body.style.background = 'var(--bg)';
-  }
-  var userBadge = document.getElementById('userBadge');
-  if (userBadge) userBadge.textContent = ROLE;
-  var isStaff = ROLE === 'staff';
-  var isSeller = ROLE === 'seller';
-  var isCustomer = ROLE === 'customer';
-  var newOrderBtn = document.getElementById('newOrderBtn');
-  var receivePaymentBtn = document.getElementById('receivePaymentBtn');
-  var newTradeBtn = document.getElementById('newTradeBtn');
-  var newExpenseBtn = document.getElementById('newExpenseBtn');
-  var insightsBtn = document.getElementById('insightsBtn');
-  var buyersBtn = document.getElementById('buyersBtn');
-  if (newOrderBtn) newOrderBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
-  if (receivePaymentBtn) receivePaymentBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
-  if (newTradeBtn) newTradeBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
-  if (newExpenseBtn) newExpenseBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
-  if (insightsBtn) insightsBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
-  if (buyersBtn) buyersBtn.style.display = (isStaff || isSeller) ? 'inline-flex' : 'none';
-
-  document.body.classList.remove('staff-role', 'seller-role', 'customer-role');
-  if (isStaff) document.body.classList.add('staff-role');
-  else if (isSeller) document.body.classList.add('seller-role');
-  else if (isCustomer) document.body.classList.add('customer-role');
-};
-
-window.checkStoredAuth = function() {
-  var savedRole = localStorage.getItem('vinere_role');
-  if (!savedRole || !PASSWORDS[savedRole]) return;
-
-  window.firebase.auth().onAuthStateChanged(async function(user) {
-    if (user) {
-      ROLE = savedRole;
-      showApp(savedRole);
-      if (typeof initApp === 'function') {
-        await initApp();
-        switchView('orders');  // Initialize view - show only Orders buttons
-      }
-    }
-  });
-};
-
-window.login = async function() {
-  var input = $('passInput').value.trim();
-  if (!input) return;
-  var hash = await sha256(input);
-
-  for (var role in PASSWORDS) {
-    if (hash === PASSWORDS[role]) {
-      ROLE = role;
-      USER_HASH = hash;
-      localStorage.setItem('vinere_role', role);
-
-      try {
-        var email = role + '@vinere.local';
-        await window.firebase.auth().signInWithEmailAndPassword(email, input);
-      } catch (err) {
-        if (err.code === 'auth/user-not-found') {
-          try {
-            await window.firebase.auth().createUserWithEmailAndPassword(email, input);
-          } catch (createErr) {
-            console.error('Firebase create failed', createErr);
-            $('loginError').textContent = 'Auth error — check console';
-            showToast('Firebase auth failed: ' + createErr.message, 'error');
-            return;
-          }
-        } else if (err.code === 'auth/too-many-requests') {
-          $('loginError').textContent = 'Too many attempts — wait 1 minute and try again';
-          showToast('Too many login attempts. Please wait.', 'error', 4000);
-          return;
-        } else {
-          console.error('Firebase auth failed', err);
-          $('loginError').textContent = 'Auth error — check console';
-          showToast('Firebase auth failed: ' + err.message, 'error');
-          return;
-        }
-      }
-
-      showApp(role);
-      await initApp();
-      switchView('orders');  // Initialize view - show only Orders buttons
-      showToast('Welcome, ' + role, 'success', 2000);
-      return;
-    }
-  }
-
-  $('loginError').textContent = 'Invalid access code';
-  showToast('Invalid access code', 'error');
-};
-
-/* ---------- Logout ---------- */
-window.logout = function() {
-  localStorage.removeItem('vinere_role');
-  ROLE = null;
-  USER_HASH = null;
-  if (window.firebase && window.firebase.auth) {
-    window.firebase.auth().signOut().catch(function() {});
-  }
-  location.reload();
-};
-
-$('loginBtn').addEventListener('click', window.login);
-$('passInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') window.login(); });
-
-/* ============ DATA KEYS ============ */
-var DK = {
-  sr: 'Sr. No.', customer: 'CUSTOMER', style: 'Style No.', jewelryType: 'Jewelry Type', date: 'Date',
-  grossWt: 'Gross Wt', diaQty: 'Dia Qty', inCt: 'IN CT', colourStone: 'COLOUR STONE',
-  netWt: 'Net Wt', multiplier: 'Multiplier', pgWt: 'Pg Wt', goldAmt: 'Gold Amount',
-  diamAmount: 'Diam Amount', lCharges: 'L CHARGES', laborAmt: 'Labor Amount',
-  subTotal: 'SUB TOTAL', usd: '$', soldTo: 'Sold To', salePrice: 'Sale Price',
-  dateSold: 'Date Sold', amountPaid: 'Amount Paid', balanceDue: 'Balance Due',
-  paymentStatus: 'Payment Status', paymentLog: 'Payment Log', memoNo: 'Memo No.',
-  diamondShape: 'Diamond Shape', buyerId: 'Buyer ID'
-};
-
-function getField(row, key) {
-  if (row[key] !== undefined) return row[key];
-  if (row[key + ' '] !== undefined) return row[key + ' '];
-  var lower = key.toLowerCase();
-  if (row[lower] !== undefined) return row[lower];
-  var title = key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
-  if (row[title] !== undefined) return row[title];
-  return undefined;
-}
-
-var SHEET_KEYS = {
-  sr: 'Sr. No.', date: 'Date', item: 'Item', vendor: 'Vendor',
-  purchasePrice: 'Purchase Price', salePrice: 'Sale Price', dateSold: 'Date Sold',
-  soldTo: 'Sold To', amountPaid: 'Amount Paid', balanceDue: 'Balance Due',
-  paymentStatus: 'Payment Status', paymentLog: 'Payment Log', profit: 'Profit / Loss', notes: 'Notes',
-  memoNo: 'Memo No.', buyerId: 'Buyer ID'
-};
-
-var EXPENSE_KEYS = {
-  sr: 'Sr. No.', date: 'Date', category: 'Category', description: 'Description',
-  amount: 'Amount', seller: 'Seller', reimbursed: 'Reimbursed',
-  reimbursementDate: 'Reimbursement Date', notes: 'Notes'
-};
-
-var BUYER_KEYS = {
-  name: 'Name', phone: 'Phone', email: 'Email', address: 'Address', notes: 'Notes'
-};
-
-/* ============ GLOBAL STATE ============ */
-var ORDERS = [];
-var TRADING = [];
-var EXPENSES = [];
-var BUYERS = [];
-
-// Filters row (Gold Rate + status/sold-to/memo filters) is collapsed by
-// default to keep the table closer to the top; persisted per-browser.
-var FILTERS_OPEN = localStorage.getItem('filtersOpen') === '1';
-function toggleFiltersBar() {
-  FILTERS_OPEN = !FILTERS_OPEN;
-  localStorage.setItem('filtersOpen', FILTERS_OPEN ? '1' : '0');
-  applyFiltersBarState();
-}
-function applyFiltersBarState() {
-  var content = $('filterBarContent');
-  var btn = $('filtersToggleBtn');
-  if (content) content.style.display = FILTERS_OPEN ? 'flex' : 'none';
-  if (btn) btn.textContent = FILTERS_OPEN ? 'Hide Filters' : 'Filters';
-}
-window.toggleFiltersBar = toggleFiltersBar;
-var currentSearchQuery = '';
-var GOLD_RATE = 16000;
-window.GOLD_RATE = GOLD_RATE;
-window.batchUpdateGoldRate = batchUpdateGoldRate;
-window.loadGoldRate = loadGoldRate;
-
-var currentView = 'orders';
-var sortCol = null;
-var sortDesc = false;
-var currentPage = 1;
-var PAGE_SIZE = 50;
-
-/* ============ INIT ============ */
-async function initApp() {
-  await doFetchOrders();
-  await doFetchTrading();
-  await doFetchExpenses();
-  await doFetchBuyers();
-  await loadGoldRate();
-  applyFiltersBarState();
-  renderAll();
-  initSwipeGestures();
-  initPullToRefresh();
-}
-
-async function loadGoldRate() {
-  var unsold = ORDERS.filter(function(r) {
-    return (r[DK.paymentStatus] || 'Not Sold').trim() === 'Not Sold';
-  });
-  var withRate = unsold.find(function(r) { return r['Gold Rate']; });
-  if (withRate) {
-    var rate = parseFloat(withRate['Gold Rate']);
-    if (!isNaN(rate) && rate > 0) {
-      GOLD_RATE = rate;
-      window.GOLD_RATE = rate;
-      localStorage.setItem('vinere_gold_rate', rate);
-      var input = $('goldRateInput');
-      if (input) input.value = rate;
-      return;
-    }
-  }
-
-  var saved = localStorage.getItem('vinere_gold_rate');
-  if (saved) {
-    var val = parseFloat(saved);
-    if (!isNaN(val) && val > 0) {
-      GOLD_RATE = val;
-      window.GOLD_RATE = val;
-      var input = $('goldRateInput');
-      if (input) input.value = val;
-      return;
-    }
-  }
-
-  GOLD_RATE = 16000;
-  window.GOLD_RATE = 16000;
-  var input = $('goldRateInput');
-  if (input) input.value = 16000;
-}
-
-/* ============ FETCH ============ */
-function normalizeRow(row) {
-  var normalized = {};
-  for (var key in row) {
-    var cleanKey = key.trim();
-    normalized[cleanKey] = row[key];
-  }
-  return normalized;
-}
-
-async function doFetchOrders() {
-  try {
-    var result = await window.fetchOrders();
-    ORDERS = result.rows.map(normalizeRow);
-    console.log('Loaded', ORDERS.length, 'orders');
-  } catch (err) {
-    console.error('Fetch orders failed', err);
-    showToast('Failed to load orders', 'error');
-  }
-}
-
-async function doFetchTrading() {
-  try {
-    var result = await window.fetchTrading();
-    TRADING = result.rows.map(normalizeRow);
-  } catch (err) {
-    console.error('Fetch trading failed', err);
-    showToast('Failed to load trading', 'error');
-  }
-}
-
-async function doFetchExpenses() {
-  try {
-    var result = await window.fetchExpenses();
-    EXPENSES = result.rows.map(normalizeRow);
-  } catch (err) {
-    console.error('Fetch expenses failed', err);
-    showToast('Failed to load expenses', 'error');
-  }
-}
-
-async function doFetchBuyers() {
-  try {
-    var result = await window.fetchBuyers();
-    BUYERS = result.rows;
-    if (window.refreshBuyerDatalist) window.refreshBuyerDatalist();
-  } catch (err) {
-    console.error('Fetch buyers failed', err);
-    showToast('Failed to load buyers', 'error');
-  }
-}
-
-/* ============ RENDER ALL ============ */
-function renderAll() {
-  var banner = $('unifiedBanner');
-  if (banner) banner.style.display = 'none';
-  var summary = $('unifiedSummary');
-  if (summary) summary.style.display = 'none';
-
-  if (isUnifiedMode()) {
-    renderUnifiedView();
-    equalizeColumnWidths();
-    updateSearchUI();
-    return;
-  }
-
-  // ── RESTORE NORMAL VIEW (after leaving unified mode) ──
-  // header-stats fully duplicates the KPI cards below (Profit/Loss ==
-  // Gross Profit/Loss, Remaining Stock + Stock Cost == Stock on Hand), so
-  // it stays hidden — the KPI cards have more context (subtext) anyway.
-  $('headerStats').style.display = 'none';
-
-  // Re-activate correct tab button
-  $('ordersViewBtn').classList.toggle('active', currentView === 'orders');
-  $('tradingViewBtn').classList.toggle('active', currentView === 'trading');
-  $('expensesViewBtn').classList.toggle('active', currentView === 'expenses');
-
-  // Hide everything first, then show only current view
-  ['ordersTable','tradingTable','expensesTable'].forEach(function(id) {
-    var el = $(id); if (el) el.style.display = 'none';
-  });
-  ['kpiGrid','tradeKpiGrid','expenseKpiGrid'].forEach(function(id) {
-    var el = $(id); if (el) el.style.display = 'none';
-  });
-  ['paginationBar','tradePaginationBar','expensePaginationBar'].forEach(function(id) {
-    var el = $(id); if (el) el.style.display = 'none';
-  });
-  ['cardList','tradeCardList','expenseCardList'].forEach(function(id) {
-    var el = $(id); if (el) el.classList.remove('active');
-  });
-
-  if (currentView === 'orders') {
-    $('ordersTable').style.display = 'table';
-    $('kpiGrid').style.display = 'grid';
-    $('paginationBar').style.display = 'flex';
-    $('cardList').classList.add('active');
-    renderKPIs();
-    renderTable();
-    renderPagination();
-    populateFilters();
-  } else if (currentView === 'trading') {
-    $('tradingTable').style.display = 'table';
-    $('tradeKpiGrid').style.display = 'grid';
-    $('tradePaginationBar').style.display = 'flex';
-    $('tradeCardList').classList.add('active');
-    renderTradeKPIs();
-    renderTradeTable();
-    renderTradePagination();
-  } else if (currentView === 'expenses') {
-    $('expensesTable').style.display = 'table';
-    $('expenseKpiGrid').style.display = 'grid';
-    $('expensePaginationBar').style.display = 'flex';
-    $('expenseCardList').classList.add('active');
-    renderExpenseKPIs();
-    renderExpenseTable();
-    renderExpensePagination();
-  }
-
-  // Filter bar visibility
-  var goldWrap = $('goldRateInput');
-  if (goldWrap && goldWrap.parentElement) {
-    goldWrap.parentElement.style.display = (currentView === 'orders') ? 'flex' : 'none';
-  }
-  var rateNote = $('rateNote');
-  if (rateNote) rateNote.style.display = (currentView === 'orders') ? '' : 'none';
-
-  ['filterSoldTo','filterMemoNo','filterPaymentStatus'].forEach(function(id) {
-    var el = $(id); if (el) el.style.display = (currentView === 'expenses') ? 'none' : '';
-  });
-  ['filterExpenseCategory','filterExpenseSeller'].forEach(function(id) {
-    var el = $(id); if (el) el.style.display = (currentView === 'expenses') ? '' : 'none';
-  });
-
-  $('receivePaymentBtn').style.display = (ROLE !== 'customer' && currentView !== 'expenses') ? 'inline-flex' : 'none';
-
-  var rateNoteCollapsed = $('rateNoteCollapsed');
-  if (rateNoteCollapsed) {
-    rateNoteCollapsed.textContent = (currentView === 'orders' && !FILTERS_OPEN)
-      ? 'Gold rate: ₹' + (GOLD_RATE || 16000).toLocaleString('en-IN') + '/gm'
-      : '';
-  }
-
-  equalizeColumnWidths();
-  updateSearchUI();
-}
-
-/* ============ COLUMN WIDTHS ============ */
-function equalizeColumnWidths() {
-  var table = document.getElementById('ordersTable');
-  if (!table) return;
-  var cols = table.querySelectorAll('colgroup col');
-  if (!cols.length) return;
-
-  var baseWidths = [5, 7, 10, 8, 6, 6, 6, 9, 5, 7, 10, 8, 10, 7];
-  var total = baseWidths.reduce(function(s, w) { return s + w; }, 0);
-
-  cols.forEach(function(col, i) {
-    var w = baseWidths[i] || 0;
-    col.style.width = ((w / total) * 100) + '%';
-  });
-}
-
-/* ============ VIEW TOGGLE ============ */
-$('ordersViewBtn').addEventListener('click', function() { switchView('orders'); });
-$('tradingViewBtn').addEventListener('click', function() { switchView('trading'); });
-$('expensesViewBtn').addEventListener('click', function() { switchView('expenses'); });
-
-function switchView(view) {
-  if (view === currentView) return;
-  currentView = view;
-  currentPage = 1;
-
-  // Close all open panels
-  if (typeof closePanel === 'function') closePanel();
-  if (typeof closeTradePanel === 'function') closeTradePanel();
-  if (typeof closeExpensePanel === 'function') closeExpensePanel();
-
-  $('ordersViewBtn').classList.toggle('active', view === 'orders');
-  $('tradingViewBtn').classList.toggle('active', view === 'trading');
-  $('expensesViewBtn').classList.toggle('active', view === 'expenses');
-
-  // Hide all tables
-  ['ordersTable','tradingTable','expensesTable'].forEach(function(id) {
-    var el = $(id); if (el) el.style.display = 'none';
-  });
-  // Hide all KPI grids
-  ['kpiGrid','tradeKpiGrid','expenseKpiGrid'].forEach(function(id) {
-    var el = $(id); if (el) el.style.display = 'none';
-  });
-  // Hide all pagination bars
-  ['paginationBar','tradePaginationBar','expensePaginationBar'].forEach(function(id) {
-    var el = $(id); if (el) el.style.display = 'none';
-  });
-  // Hide all card lists
-  ['cardList','tradeCardList','expenseCardList'].forEach(function(id) {
-    var el = $(id); if (el) el.classList.remove('active');
-  });
-  // Hide all action buttons
-  ['newOrderBtn','newTradeBtn','newExpenseBtn'].forEach(function(id) {
-    var el = $(id); if (el) el.style.display = 'none';
-  });
-
-  // Show selected view
-  if (view === 'orders') {
-    $('ordersTable').style.display = 'table';
-    $('kpiGrid').style.display = 'grid';
-    $('paginationBar').style.display = 'flex';
-    $('cardList').classList.add('active');
-    $('newOrderBtn').style.display = (ROLE !== 'customer') ? 'inline-flex' : 'none';
-  } else if (view === 'trading') {
-    $('tradingTable').style.display = 'table';
-    $('tradeKpiGrid').style.display = 'grid';
-    $('tradePaginationBar').style.display = 'flex';
-    $('tradeCardList').classList.add('active');
-    $('newTradeBtn').style.display = (ROLE !== 'customer') ? 'inline-flex' : 'none';
-  } else if (view === 'expenses') {
-    $('expensesTable').style.display = 'table';
-    $('expenseKpiGrid').style.display = 'grid';
-    $('expensePaginationBar').style.display = 'flex';
-    $('expenseCardList').classList.add('active');
-    $('newExpenseBtn').style.display = (ROLE !== 'customer') ? 'inline-flex' : 'none';
-  }
-
-  // Filter bar visibility
-  var goldWrap = $('goldRateInput');
-  if (goldWrap && goldWrap.parentElement) {
-    goldWrap.parentElement.style.display = (view === 'orders') ? 'flex' : 'none';
-  }
-  var rateNote = $('rateNote');
-  if (rateNote) rateNote.style.display = (view === 'orders') ? '' : 'none';
-
-  ['filterSoldTo','filterMemoNo','filterPaymentStatus'].forEach(function(id) {
-    var el = $(id); if (el) el.style.display = (view === 'expenses') ? 'none' : '';
-  });
-  ['filterExpenseCategory','filterExpenseSeller'].forEach(function(id) {
-    var el = $(id); if (el) el.style.display = (view === 'expenses') ? '' : 'none';
-  });
-
-  $('receivePaymentBtn').style.display = (ROLE !== 'customer' && view !== 'expenses') ? 'inline-flex' : 'none';
-  $('headerStats').style.display = 'none';
-
-  // Mobile FAB wiring
-  var fab = $('mobileFab');
-  if (fab) {
-    fab.style.display = (window.innerWidth <= 900 && ROLE !== 'customer') ? 'flex' : 'none';
-    fab.onclick = function() {
-      if (currentView === 'orders' && window.openOrderPanel) window.openOrderPanel();
-      else if (currentView === 'trading' && window.openTradePanel) window.openTradePanel();
-      else if (currentView === 'expenses' && window.openExpensePanel) window.openExpensePanel();
-    };
-  }
-
-  renderAll();
-}
-
-/* ============ SEARCH ============ */
-$('search').addEventListener('input', function(e) {
-  currentSearchQuery = e.target.value.trim().toLowerCase();
-  currentPage = 1;
-  updateSearchUI();
-  renderAll();
-});
-
-function updateSearchUI() {
-  var clearBtn = $('searchClear');
-  var countEl = $('resultCount');
-  if (clearBtn) clearBtn.style.display = currentSearchQuery ? 'flex' : 'none';
-
-  var count;
-  if (currentView === 'orders') count = getFilteredOrders().length;
-  else if (currentView === 'trading') count = getFilteredTrading().length;
-  else count = getFilteredExpenses().length;
-
-  if (countEl) {
-    if (currentSearchQuery) {
-      countEl.textContent = count + ' result' + (count !== 1 ? 's' : '');
-      countEl.style.display = 'inline-flex';
-    } else {
-      countEl.style.display = 'none';
-    }
-  }
-}
-
-$('searchClear').addEventListener('click', function() {
-  $('search').value = '';
-  currentSearchQuery = '';
-  currentPage = 1;
-  updateSearchUI();
-  renderAll();
-  $('search').focus();
-});
-
-/* ============ REFRESH ============ */
-$('refreshBtn').addEventListener('click', async function() {
-  showToast('Refreshing data...', 'info', 1500);
-  await doFetchOrders();
-  await doFetchTrading();
-  await doFetchExpenses();
-  renderAll();
-  showToast('Data refreshed', 'success', 2000);
-});
-
-/* ============ NEW ORDER / TRADE / EXPENSE / PAYMENT ============ */
-$('newOrderBtn').addEventListener('click', function() {
-  if (window.openOrderPanel) window.openOrderPanel();
-});
-
-$('newTradeBtn').addEventListener('click', function() {
-  if (window.openTradePanel) window.openTradePanel();
-});
-
-$('newExpenseBtn').addEventListener('click', function() {
-  if (window.openExpensePanel) window.openExpensePanel();
-});
-
-$('receivePaymentBtn').addEventListener('click', function() {
-  if (window.openPaymentSearch) window.openPaymentSearch();
-});
-
-/* ============ FILTERS ============ */
-function populateFilters() {
-  // Customer dropdown removed — no-op
-}
-
-/* ============ GOLD RATE ============ */
-var goldRateDebounce;
-$('goldRateInput').addEventListener('input', function() {
-  var val = parseFloat(this.value);
-  if (!isNaN(val) && val > 0) {
-    GOLD_RATE = val;
-    window.GOLD_RATE = val;
-    renderAll();
-  }
-  // Debounce the Firebase sync — only write after user stops typing
-  clearTimeout(goldRateDebounce);
-  goldRateDebounce = setTimeout(async function() {
-    var finalVal = parseFloat($('goldRateInput').value);
-    if (!isNaN(finalVal) && finalVal > 0) {
-      GOLD_RATE = finalVal;
-      window.GOLD_RATE = finalVal;
-      localStorage.setItem('vinere_gold_rate', finalVal);
-      try { await window.saveSettings(finalVal); } catch(e) { console.error('Failed to save gold rate setting', e); }
-      await batchUpdateGoldRate(finalVal);
-    }
-  }, 800);
-});
-
-async function batchUpdateGoldRate(newRate) {
-  var unsold = ORDERS.filter(function(r) {
-    return (r[DK.paymentStatus] || 'Not Sold').trim() === 'Not Sold';
-  });
-  if (!unsold.length) {
-    showToast('Gold rate set to \u20b9' + newRate.toLocaleString('en-IN'), 'info', 1500);
-    return;
-  }
-  showToast('Syncing ' + unsold.length + ' unsold orders to new gold rate\u2026', 'info', 3000);
-  for (var i = 0; i < unsold.length; i++) {
-    var r = unsold[i];
-    var net = parseFloat(r[DK.netWt]) || 0;
-    var mult = parseFloat(r[DK.multiplier]) || 0.595;
-    var pgWt = net * mult;
-    var goldAmt = pgWt * newRate;
-    var labor = parseFloat(r[DK.laborAmt]) || 0;
-    var diam = parseFloat(r[DK.diamAmount]) || 0;
-    var subTotal = goldAmt + labor + diam;
-    var usd = subTotal / 94;
-    var data = {};
-    for (var k in r) data[k] = r[k];
-    data[DK.pgWt] = pgWt.toFixed(3);
-    data[DK.goldAmt] = Math.round(goldAmt).toString();
-    data[DK.subTotal] = Math.round(subTotal).toString();
-    data[DK.usd] = usd.toFixed(2);
-    data['Gold Rate'] = newRate.toString();
-    try { await window.updateOrder(r._id, data); } catch(e) { console.error('Gold sync failed for', r._id, e); }
-  }
-  await doFetchOrders();
-  renderAll();
-  showToast('Gold rate \u20b9' + newRate.toLocaleString('en-IN') + ' synced to ' + unsold.length + ' orders', 'success', 2500);
-}
-
-$('clearFiltersBtn').addEventListener('click', function() {
-  $('filterSoldTo').value = '';
-  $('filterMemoNo').value = '';
-  $('filterPaymentStatus').value = '';
-  $('filterExpenseCategory').value = '';
-  $('filterExpenseSeller').value = '';
-  sortCol = null;
-  sortDesc = false;
-  currentPage = 1;
-  renderAll();
-});
-
-/* ============ PAGINATION ============ */
-function renderPagination() {
-  var filtered = getFilteredOrders();
-  var totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
-
-  $('paginationBar').innerHTML =
-    '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window.changePage(1)">First</button>' +
-    '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window.changePage(' + (currentPage - 1) + ')">Prev</button>' +
-    '<span class="page-info">Page ' + currentPage + ' of ' + totalPages + '</span>' +
-    '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changePage(' + (currentPage + 1) + ')">Next</button>' +
-    '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changePage(' + totalPages + ')">Last</button>';
-}
-
-function renderTradePagination() {
-  var filtered = getFilteredTrading();
-  var totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
-
-  $('tradePaginationBar').innerHTML =
-    '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window.changeTradePage(1)">First</button>' +
-    '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window.changeTradePage(' + (currentPage - 1) + ')">Prev</button>' +
-    '<span class="page-info">Page ' + currentPage + ' of ' + totalPages + '</span>' +
-    '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeTradePage(' + (currentPage + 1) + ')">Next</button>' +
-    '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeTradePage(' + totalPages + ')">Last</button>';
-}
-
-function renderExpensePagination() {
-  var filtered = getFilteredExpenses();
-  var totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
-  $('expensePaginationBar').innerHTML =
-    '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window.changeExpensePage(1)">First</button>' +
-    '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window.changeExpensePage(' + (currentPage - 1) + ')">Prev</button>' +
-    '<span class="page-info">Page ' + currentPage + ' of ' + totalPages + '</span>' +
-    '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeExpensePage(' + (currentPage + 1) + ')">Next</button>' +
-    '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeExpensePage(' + totalPages + ')">Last</button>';
-}
-
-window.changePage = function(p) { currentPage = p; renderTable(); renderPagination(); };
-window.changeTradePage = function(p) { currentPage = p; renderTradeTable(); renderTradePagination(); };
-window.changeExpensePage = function(p) { currentPage = p; renderExpenseTable(); renderExpensePagination(); };
-
-/* ============ SWIPE GESTURES (mobile) ============ */
-function initSwipeGestures() {
-  var touchStartX = 0;
-  var touchEndX = 0;
-  var minSwipe = 60;
-
-  document.addEventListener('touchstart', function(e) {
-    touchStartX = e.changedTouches[0].screenX;
-  }, { passive: true });
-
-  document.addEventListener('touchend', function(e) {
-    touchEndX = e.changedTouches[0].screenX;
-    handleSwipe();
-  }, { passive: true });
-
-  function handleSwipe() {
-    var diff = touchStartX - touchEndX;
-    if (Math.abs(diff) < minSwipe) return;
-
-    var filtered, totalPages;
-    if (currentView === 'orders') {
-      filtered = getFilteredOrders();
-      totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
-      if (diff > 0 && currentPage < totalPages) {
-        changePage(currentPage + 1);
-        showToast('Page ' + currentPage, 'info', 800);
-      } else if (diff < 0 && currentPage > 1) {
-        changePage(currentPage - 1);
-        showToast('Page ' + currentPage, 'info', 800);
-      }
-    } else if (currentView === 'trading') {
-      filtered = getFilteredTrading();
-      totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
-      if (diff > 0 && currentPage < totalPages) {
-        changeTradePage(currentPage + 1);
-        showToast('Page ' + currentPage, 'info', 800);
-      } else if (diff < 0 && currentPage > 1) {
-        changeTradePage(currentPage - 1);
-        showToast('Page ' + currentPage, 'info', 800);
-      }
-    } else if (currentView === 'expenses') {
-      filtered = getFilteredExpenses();
-      totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
-      if (diff > 0 && currentPage < totalPages) {
-        changeExpensePage(currentPage + 1);
-        showToast('Page ' + currentPage, 'info', 800);
-      } else if (diff < 0 && currentPage > 1) {
-        changeExpensePage(currentPage - 1);
-        showToast('Page ' + currentPage, 'info', 800);
-      }
-    }
-  }
-}
-
-/* ============ SORT ============ */
-function sortByColumn(col) {
-  if (sortCol === col) {
-    if (sortDesc) {
-      sortCol = null;   // third click = reset to default Sr. order
-      sortDesc = false;
-    } else {
-      sortDesc = true;  // second click = descending
-    }
-  } else {
-    sortCol = col;
-    sortDesc = false;   // first click = ascending
-  }
-  currentPage = 1;
-  renderAll();
-}
-
-/* ============ FILTER LOGIC ============ */
-function getFilteredOrders() {
-  var rows = [...ORDERS];
-  var q = currentSearchQuery;
-  var soldToFilter = $('filterSoldTo').value.trim().toLowerCase();
-  var memoNoFilter = $('filterMemoNo').value.trim().toLowerCase();
-  var paymentStatusFilter = $('filterPaymentStatus').value;
-
-  if (q) {
-    rows = rows.filter(function(r) {
-      return Object.values(r).some(function(v) { return String(v).toLowerCase().includes(q); });
-    });
-  }
-  if (soldToFilter) rows = rows.filter(function(r) { return String(r[DK.soldTo] || '').toLowerCase().includes(soldToFilter); });
-  if (memoNoFilter) rows = rows.filter(function(r) { return String(r[DK.memoNo] || '').toLowerCase() === memoNoFilter; });
-  if (paymentStatusFilter) rows = rows.filter(function(r) { return (r[DK.paymentStatus] || 'Not Sold').trim() === paymentStatusFilter; });
-
-  if (sortCol === 'inCt') {
-    rows.sort(function(a, b) {
-      var av = parseFloat(a[DK.inCt]) || 0;
-      var bv = parseFloat(b[DK.inCt]) || 0;
-      return sortDesc ? bv - av : av - bv;
-    });
-  } else if (sortCol === 'sr') {
-    rows.sort(function(a, b) {
-      var av = parseInt(a[DK.sr]) || 0;
-      var bv = parseInt(b[DK.sr]) || 0;
-      return sortDesc ? bv - av : av - bv;
-    });
-  }
-
-  return rows;
-}
-
-function getFilteredTrading() {
-  var rows = [...TRADING];
-  var q = currentSearchQuery;
-  if (q) {
-    rows = rows.filter(function(r) {
-      return Object.values(r).some(function(v) { return String(v).toLowerCase().includes(q); });
-    });
-  }
-  var memoNo = $('filterMemoNo').value.trim().toLowerCase();
-  var soldTo = $('filterSoldTo').value.trim().toLowerCase();
-  var paymentStatus = $('filterPaymentStatus').value;
-  if (memoNo) rows = rows.filter(function(r) { return String(r[SHEET_KEYS.memoNo] || '').toLowerCase() === memoNo; });
-  if (soldTo) rows = rows.filter(function(r) { return String(r[SHEET_KEYS.soldTo] || '').toLowerCase().includes(soldTo); });
-  if (paymentStatus) rows = rows.filter(function(r) { return (r[SHEET_KEYS.paymentStatus] || 'Not Sold').trim() === paymentStatus; });
-  return rows;
-}
-
-function getFilteredExpenses() {
-  var rows = [...EXPENSES];
-  var q = currentSearchQuery;
-  if (q) {
-    rows = rows.filter(function(r) {
-      return Object.values(r).some(function(v) { return String(v).toLowerCase().includes(q); });
-    });
-  }
-  var category = $('filterExpenseCategory').value;
-  var seller = $('filterExpenseSeller').value.trim().toLowerCase();
-  if (category) rows = rows.filter(function(r) { return (r[EXPENSE_KEYS.category] || '') === category; });
-  if (seller) rows = rows.filter(function(r) { return String(r[EXPENSE_KEYS.seller] || '').toLowerCase().includes(seller); });
-  return rows;
-}
-
-/* ============ UNIFIED VIEW ============ */
-function isUnifiedMode() {
-  var memoNo = $('filterMemoNo').value.trim();
-  var soldTo = $('filterSoldTo').value.trim();
-  return !!(memoNo || soldTo);
-}
-
-function getUnifiedResults() {
-  var memoNo = $('filterMemoNo').value.trim().toLowerCase();
-  var soldTo = $('filterSoldTo').value.trim().toLowerCase();
-  var q = currentSearchQuery;
-  var paymentStatus = $('filterPaymentStatus').value;
-
-  var orderRows = [...ORDERS].filter(function(r) {
-    if (q && !Object.values(r).some(function(v) { return String(v).toLowerCase().includes(q); })) return false;
-    if (memoNo && String(r[DK.memoNo] || '').toLowerCase() !== memoNo) return false;
-    if (soldTo && !String(r[DK.soldTo] || '').toLowerCase().includes(soldTo)) return false;
-    if (paymentStatus && (r[DK.paymentStatus] || 'Not Sold').trim() !== paymentStatus) return false;
-    return true;
-  });
-  orderRows.forEach(function(r) { r._type = 'order'; r._sortSr = parseInt(r[DK.sr]) || 0; r._sortMemo = String(r[DK.memoNo] || '').toLowerCase(); });
-
-  var tradeRows = [...TRADING].filter(function(r) {
-    if (q && !Object.values(r).some(function(v) { return String(v).toLowerCase().includes(q); })) return false;
-    if (memoNo && String(r[SHEET_KEYS.memoNo] || '').toLowerCase() !== memoNo) return false;
-    if (soldTo && !String(r[SHEET_KEYS.soldTo] || '').toLowerCase().includes(soldTo)) return false;
-    if (paymentStatus && (r[SHEET_KEYS.paymentStatus] || 'Not Sold').trim() !== paymentStatus) return false;
-    return true;
-  });
-  tradeRows.forEach(function(r) { r._type = 'trade'; r._sortSr = parseInt(r[SHEET_KEYS.sr]) || 0; r._sortMemo = String(r[SHEET_KEYS.memoNo] || '').toLowerCase(); });
-
-  var results = orderRows.concat(tradeRows);
-  results.sort(function(a, b) {
-    if (a._sortMemo !== b._sortMemo) return a._sortMemo.localeCompare(b._sortMemo);
-    if (a._type !== b._type) return a._type === 'order' ? -1 : 1;
-    return a._sortSr - b._sortSr;
-  });
-  return results;
-}
-
-function renderUnifiedView() {
-  $('ordersViewBtn').classList.remove('active');
-  $('tradingViewBtn').classList.remove('active');
-  $('expensesViewBtn').classList.remove('active');
-  $('headerStats').style.display = 'none';
-  $('kpiGrid').style.display = 'none';
-  $('tradeKpiGrid').style.display = 'none';
-  $('expenseKpiGrid').style.display = 'none';
-
-  var banner = $('unifiedBanner');
-  if (!banner) {
-    banner = document.createElement('div');
-    banner.id = 'unifiedBanner';
-    banner.className = 'unified-banner';
-    var ref = $('kpiGrid');
-    if (ref && ref.parentNode) ref.parentNode.insertBefore(banner, ref);
-  }
-
-  var memoNo = $('filterMemoNo').value.trim();
-  var soldTo = $('filterSoldTo').value.trim();
-  var parts = [];
-  if (memoNo) parts.push('Memo <strong>' + escapeHtml(memoNo) + '</strong>');
-  if (soldTo) parts.push('Buyer <strong>' + escapeHtml(soldTo) + '</strong>');
-  banner.innerHTML = 'Combined results for ' + parts.join(' + ') +
-    '<span style="margin-left:12px;font-size:12px;opacity:0.8;">Orders are blue \u00b7 Trades are green</span>' +
-    '<button class="btn text small" style="margin-left:auto;" onclick="$(\'filterMemoNo\').value=\'\';$(\'filterSoldTo\').value=\'\';window.currentPage=1;renderAll();">Show tab view</button>';
-  banner.style.display = 'flex';
-
-  var summary = $('unifiedSummary');
-  if (!summary) {
-    summary = document.createElement('div');
-    summary.id = 'unifiedSummary';
-    summary.className = 'kpi-grid';
-    summary.style.marginBottom = 'var(--space-4)';
-    if (banner && banner.parentNode) banner.parentNode.insertBefore(summary, banner.nextSibling);
-  }
-  var results = getUnifiedResults();
-  var totalBill = 0, totalPaid = 0;
-  results.forEach(function(r) {
-    var K = r._type === 'order' ? DK : SHEET_KEYS;
-    totalBill += parseFloat(r[K.salePrice]) || 0;
-    totalPaid += parseFloat(r[K.amountPaid]) || 0;
-  });
-  var balance = totalBill - totalPaid;
-  var status = totalBill === 0 ? 'Not Sold' : (totalPaid >= totalBill ? 'Paid' : (totalPaid > 0 ? 'Partial' : 'Unpaid'));
-  summary.innerHTML =
-    '<div class="kpi-card"><div class="kpi-label">Total Bill</div><div class="kpi-value">$' + fmtMoney(totalBill) + '</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">Total Paid</div><div class="kpi-value">$' + fmtMoney(totalPaid) + '</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">Balance Due</div><div class="kpi-value" style="color:' + (balance > 0 ? 'var(--error)' : 'var(--success)') + '">$' + fmtMoney(balance) + '</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">Memo Status</div><div class="kpi-value">' + status + '</div></div>';
-  summary.style.display = 'grid';
-
-  renderUnifiedTable();
-  renderUnifiedCards();
-  renderUnifiedPagination();
-}
-
-function renderUnifiedPagination() {
-  var results = getUnifiedResults();
-  var totalPages = Math.ceil(results.length / PAGE_SIZE) || 1;
-  $('paginationBar').style.display = 'flex';
-  $('paginationBar').innerHTML =
-    '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window.changeUnifiedPage(1)">First</button>' +
-    '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window.changeUnifiedPage(' + (currentPage - 1) + ')">Prev</button>' +
-    '<span class="page-info">Page ' + currentPage + ' of ' + totalPages + ' \u00b7 ' + results.length + ' results</span>' +
-    '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeUnifiedPage(' + (currentPage + 1) + ')">Next</button>' +
-    '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window.changeUnifiedPage(' + totalPages + ')">Last</button>';
-  $('tradePaginationBar').style.display = 'none';
-  $('expensePaginationBar').style.display = 'none';
-}
-
-window.changeUnifiedPage = function(p) {
-  currentPage = p;
-  renderUnifiedTable();
-  renderUnifiedCards();
-  renderUnifiedPagination();
-};
-
-
-/* ============ PULL TO REFRESH (mobile) ============ */
-function initPullToRefresh() {
-  var startY = 0;
-  var threshold = 120;
-  var refreshing = false;
-  var indicator = document.createElement('div');
-  indicator.className = 'ptr-indicator';
-  indicator.innerHTML = '<div class="ptr-spinner"></div>';
-  indicator.style.cssText = 'position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(-40px);z-index:120;opacity:0;transition:opacity 0.2s;pointer-events:none;';
-  var spinner = indicator.querySelector('.ptr-spinner');
-  if (spinner) spinner.style.cssText = 'width:28px;height:28px;border:3px solid var(--md-outline);border-top-color:var(--md-primary);border-radius:50%;animation:ptrSpin 0.8s linear infinite;';
-  document.body.prepend(indicator);
-
-  // inject keyframes if not present
-  if (!document.getElementById('ptr-style')) {
-    var s = document.createElement('style');
-    s.id = 'ptr-style';
-    s.textContent = '@keyframes ptrSpin{to{transform:rotate(360deg)}}';
-    document.head.appendChild(s);
-  }
-
-  document.addEventListener('touchstart', function(e) {
-    if (window.scrollY === 0) startY = e.touches[0].clientY;
-  }, { passive: true });
-
-  document.addEventListener('touchmove', function(e) {
-    if (refreshing || window.scrollY > 0) return;
-    var diff = e.touches[0].clientY - startY;
-    if (diff > 0 && diff < threshold * 1.5) {
-      indicator.style.transform = 'translateX(-50%) translateY(' + (diff - 40) + 'px)';
-      indicator.style.opacity = Math.min(diff / threshold, 1);
-    }
-  }, { passive: true });
-
-  document.addEventListener('touchend', function() {
-    var diff = parseFloat(indicator.style.transform.replace('translateY(', '').replace('px)', '')) || 0;
-    diff = Math.abs(diff);
-    if (diff > threshold - 40 && !refreshing) {
-      refreshing = true;
-      indicator.querySelector('.ptr-spinner').style.animationDuration = '0.5s';
-      showToast('Refreshing...', 'info', 1000);
-      Promise.all([doFetchOrders(), doFetchTrading(), doFetchExpenses()]).then(function() {
-        renderAll();
-        refreshing = false;
-        indicator.querySelector('.ptr-spinner').style.animationDuration = '0.8s';
-        indicator.style.transform = 'translateX(-50%) translateY(-40px)';
-        indicator.style.opacity = '0';
-      });
-    } else {
-      indicator.style.transform = 'translateX(-50%) translateY(-40px)';
-      indicator.style.opacity = '0';
-    }
-  }, { passive: true });
-}
-
-/* ============ EXPOSE GLOBALLY ============ */
-window.ROLE = ROLE;
-window.DK = DK;
-window.SHEET_KEYS = SHEET_KEYS;
-window.EXPENSE_KEYS = EXPENSE_KEYS;
-window.ORDERS = ORDERS;
-window.TRADING = TRADING;
-window.EXPENSES = EXPENSES;
-window.currentPage = currentPage;
-window.PAGE_SIZE = PAGE_SIZE;
-window.currentSearchQuery = currentSearchQuery;
-window.getFilteredOrders = getFilteredOrders;
-window.getFilteredTrading = getFilteredTrading;
-window.getFilteredExpenses = getFilteredExpenses;
-window.switchView = switchView;
-window.renderAll = renderAll;
-window.doFetchOrders = doFetchOrders;
-window.doFetchTrading = doFetchTrading;
-window.doFetchExpenses = doFetchExpenses;
-window.equalizeColumnWidths = equalizeColumnWidths;
-window.populateFilters = populateFilters;
-window.GOLD_RATE = GOLD_RATE;
-window.batchUpdateGoldRate = batchUpdateGoldRate;
-window.loadGoldRate = loadGoldRate;
-window.isUnifiedMode = isUnifiedMode;
-window.getUnifiedResults = getUnifiedResults;
-window.renderUnifiedView = renderUnifiedView;
-window.sortByColumn = sortByColumn;
-window.changeExpensePage = function(p) { currentPage = p; renderExpenseTable(); renderExpensePagination(); };
-
-/* ============ FAB RESIZE LISTENER ============ */
-window.addEventListener('resize', function() {
-  var fab = $('mobileFab');
-  if (fab) {
-    fab.style.display = (window.innerWidth <= 900 && ROLE !== 'customer') ? 'flex' : 'none';
-  }
-});
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1E1B18">
+<title>VINÉRE Ledger — Orders</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=14">
+<base target="_blank">
+<base target="_blank">
+<base target="_blank">
+<base target="_blank">
+<base target="_blank">
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login">
+  <div class="login-card">
+    <img class="login-logo" src="images/vinere-logo-white.png" alt="VINÉRE Jewellery">
+    <input id="passInput" type="password" placeholder="Access code" autofocus autocomplete="off">
+    <button id="loginBtn">Unlock</button>
+    <div id="loginError"></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="mark">VINÉRE<span class="dot">·</span>Ledger</div>
+      <div class="view-toggle">
+        <button class="btn secondary small active" id="ordersViewBtn">Orders</button>
+        <button class="btn secondary small" id="tradingViewBtn">Trading</button>
+        <button class="btn secondary small" id="expensesViewBtn">Expenses</button>
+      </div>
+    </div>
+    <div class="header-stats" id="headerStats">
+      <div class="hstat" id="hstat_1_wrap"><span class="hstat-label" id="hstat_1_label">Profit / Loss</span><span class="hstat-value" id="hstat_1">—</span></div>
+      <div class="hstat" id="hstat_2_wrap"><span class="hstat-label" id="hstat_2_label">Remaining Stock</span><span class="hstat-value" id="hstat_2">—</span></div>
+      <div class="hstat" id="hstat_3_wrap"><span class="hstat-label" id="hstat_3_label">Stock Cost</span><span class="hstat-value" id="hstat_3">—</span></div>
+    </div>
+    <div class="topbar-right">
+      <div class="search-wrap">
+        <input id="search" placeholder="Search…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" onfocus="this.setAttribute('readonly','readonly');setTimeout(()=>this.removeAttribute('readonly'),1)">
+        <button id="searchClear" class="search-clear" title="Clear search">&times;</button>
+        <span id="resultCount" class="result-count"></span>
+      </div>
+      <button class="btn secondary small" id="refreshBtn" title="Refresh">↻</button>
+      <button class="btn secondary small" id="insightsBtn" title="Vendor profitability & best sellers">Insights</button>
+      <button class="btn secondary small" id="buyersBtn" title="Buyer directory">Buyers</button>
+      <button class="btn secondary small" id="receivePaymentBtn">Payment</button>
+      <button class="btn small" id="newOrderBtn">+ Order</button>
+      <button class="btn small" id="newTradeBtn" style="display:none;">+ Trade</button>
+      <button class="btn small" id="newExpenseBtn" style="display:none;">+ Expense</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="ordersView">
+      <div class="filter-bar-head">
+        <button class="btn secondary small" id="filtersToggleBtn" onclick="toggleFiltersBar()">Filters</button>
+        <span class="rate-note" id="rateNoteCollapsed"></span>
+      </div>
+      <div class="filter-bar compact" id="filterBarContent" style="display:none;">
+        <div class="field" style="margin:0;flex:0 0 auto;">
+          <label style="font-size:11px;margin-bottom:2px;">Gold Rate (₹/gm)</label>
+          <input type="number" id="goldRateInput" value="16000" step="100" style="width:100px;padding:6px 10px;font-size:14px;">
+        </div>
+        <span class="rate-note" id="rateNote"></span>
+
+        <div class="filter-right">
+          <select id="filterPaymentStatus" class="filter-pill" style="width:auto;min-width:130px;">
+            <option value="">All Status</option>
+            <option value="Not Sold">Not Sold</option>
+            <option value="Unpaid">Unpaid</option>
+            <option value="Partial">Partial</option>
+            <option value="Paid">Paid</option>
+          </select>
+          <input type="text" id="filterSoldTo" class="filter-pill" placeholder="Sold to…" autocomplete="off">
+          <input type="text" id="filterMemoNo" class="filter-pill" placeholder="Memo no…" autocomplete="off">
+          <select id="filterExpenseCategory" class="filter-pill" style="width:auto;min-width:140px;display:none;">
+            <option value="">All Categories</option>
+            <option value="Travel">Travel</option>
+            <option value="Food">Food</option>
+            <option value="Accommodation">Accommodation</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Office">Office</option>
+            <option value="Shipping">Shipping</option>
+            <option value="Misc">Misc</option>
+          </select>
+          <input type="text" id="filterExpenseSeller" class="filter-pill" placeholder="Seller…" style="display:none;" autocomplete="off">
+          <button class="btn secondary small" id="clearFiltersBtn">Clear</button>
+        </div>
+      </div>
+
+      <div class="kpi-grid" id="kpiGrid"></div>
+      <div class="kpi-grid" id="tradeKpiGrid" style="display:none;"></div>
+      <div class="kpi-grid" id="expenseKpiGrid" style="display:none;"></div>
+
+      <div class="table-wrap">
+        <table id="ordersTable">
+          <colgroup>
+            <col style="width:4%"><col style="width:7%"><col style="width:9%"><col style="width:6%"><col style="width:7%"><col style="width:7%">
+            <col style="width:5%"><col style="width:5%"><col style="width:5%">
+            <col style="width:9%"><col style="width:5%"><col style="width:6%"><col style="width:9%">
+            <col style="width:7%"><col style="width:8%">
+          </colgroup>
+          <thead><tr>
+            <th class="num sticky-col-left">Sr.</th><th>Customer</th><th>Style No.</th><th>Jewelry Type</th><th>Diamond Shape</th><th>Date</th>
+            <th class="num">Gross Wt</th><th class="num">Net Wt</th><th class="num sortable" onclick="window.sortByColumn('inCt')" style="cursor:pointer;">Carat <span class="sort-icon">↕</span></th>
+            <th class="num">Sub Total</th><th class="num">$</th><th>Memo No.</th><th>Sold To</th>
+            <th class="num">Sale Price</th><th class="sticky-col-right">Status</th>
+          </tr></thead>
+          <tbody id="tbody">
+            <tr class="skeleton-row"><td colspan="14"><div class="skeleton-cell" style="width:100%"></div></td></tr>
+            <tr class="skeleton-row"><td colspan="14"><div class="skeleton-cell" style="width:100%"></div></td></tr>
+            <tr class="skeleton-row"><td colspan="14"><div class="skeleton-cell" style="width:100%"></div></td></tr>
+          </tbody>
+        </table>
+
+        <table id="tradingTable" style="display:none;">
+          <colgroup>
+            <col style="width:4%"><col style="width:8%"><col style="width:16%">
+            <col style="width:14%"><col style="width:8%"><col style="width:8%">
+            <col style="width:8%"><col style="width:14%"><col style="width:7%"><col style="width:8%">
+          </colgroup>
+          <thead><tr>
+            <th class="num sticky-col-left">Sr.</th><th>Date</th><th>Item</th><th>Vendor</th>
+            <th class="num">Purchase $</th><th>Memo No.</th><th class="num">Sale $</th><th>Sold To</th>
+            <th>Status</th><th class="num sticky-col-right">P/L</th>
+          </tr></thead>
+          <tbody id="tradeTbody">
+            <tr class="skeleton-row"><td colspan="10"><div class="skeleton-cell" style="width:100%"></div></td></tr>
+            <tr class="skeleton-row"><td colspan="10"><div class="skeleton-cell" style="width:100%"></div></td></tr>
+            <tr class="skeleton-row"><td colspan="10"><div class="skeleton-cell" style="width:100%"></div></td></tr>
+          </tbody>
+        </table>
+
+       <table id="expensesTable" style="display:none;">
+  <colgroup>
+    <col style="width:8%"><col style="width:14%"><col style="width:15%">
+    <col style="width:42%"><col style="width:21%">
+  </colgroup>
+  <thead><tr>
+    <th class="num">Sr.</th><th>Date</th><th>Category</th><th>Description</th>
+    <th class="num">Amount</th>
+  </tr></thead>
+  <tbody id="expenseTbody">
+    <tr class="skeleton-row"><td colspan="5"><div class="skeleton-cell" style="width:100%"></div></td></tr>
+    <tr class="skeleton-row"><td colspan="5"><div class="skeleton-cell" style="width:100%"></div></td></tr>
+  </tbody>
+</table>
+      </div>
+
+      <div class="card-list" id="cardList"></div>
+      <div class="card-list" id="tradeCardList"></div>
+      <div class="card-list" id="expenseCardList"></div>
+      <div class="pagination-bar" id="paginationBar"></div>
+      <div class="pagination-bar" id="tradePaginationBar" style="display:none;"></div>
+      <div class="pagination-bar" id="expensePaginationBar" style="display:none;"></div>
+      <div class="swipe-hint">Swipe left/right to change pages</div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ ORDERS PANEL ============ -->
+<div id="overlay"></div>
+<div id="panel">
+  <div class="panel-head">
+    <h2 id="panelTitle">New Order</h2>
+    <span id="panelStatusBadge" class="status-badge status-not-sold" style="display:none;">Not Sold</span>
+    <button id="closePanel">&times;</button>
+  </div>
+
+  <!-- Memo Banner (injected by JS when memo exists) -->
+  <div id="panelMemoBanner" class="panel-memo-banner" style="display:none;"></div>
+
+  <!-- Tabs -->
+  <div class="panel-tabs">
+    <button class="panel-tab active" data-tab="tab-costs">Cost</button>
+    <button class="panel-tab" data-tab="tab-sale">Payment</button>
+  </div>
+
+  <div class="panel-body">
+
+    <!-- ===== TAB 1: COST ===== -->
+    <div id="tab-costs" class="tab-content active">
+      <div class="section-card">
+        <div class="section-card-title">Item Details</div>
+        <div class="fields-grid compact">
+          <div class="field full-width">
+            <label>Customer *</label>
+            <input id="f_customer" placeholder="e.g. HET">
+            <div class="field-error" id="err_f_customer"></div>
+          </div>
+          <div class="field full-width">
+            <label>Style No. *</label>
+            <input id="f_style" placeholder="e.g. SLER-0079 I">
+            <div class="field-error" id="err_f_style"></div>
+          </div>
+          <div class="field">
+            <label>Jewelry Type</label>
+            <select id="f_jewelryType">
+              <option value="">Select type…</option>
+              <option value="Bracelet">Bracelet</option>
+              <option value="Necklace">Necklace</option>
+              <option value="Ring">Ring</option>
+              <option value="Earring">Earring</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Diamond Shape</label>
+            <div class="field-row">
+              <select id="f_diamondShapeBase">
+                <option value="">Select shape…</option>
+              </select>
+              <select id="f_diamondShapeVariant" disabled>
+                <option value="">Select shape first…</option>
+              </select>
+            </div>
+            <!-- Hidden: keeps the real stored value; panel.js/table.js read/write this id unchanged -->
+            <select id="f_diamondShape" style="display:none">
+              <option value="">Select shape…</option>
+              <option value="Round">Round</option>           
+              <option value="Round Bezel">Round Bezel</option>
+              <option value="Oval East/West">Oval East/West</option>
+              <option value="Oval North/South">Oval North/South</option>
+              <option value="Oval Bezel East/West">Oval Bezel East/West</option>
+              <option value="Oval Bezel North/South">Oval Bezel North/South</option>
+              <option value="Marquise East/West">Marquise East/West</option>
+              <option value="Marquise North/South">Marquise North/South</option>
+              <option value="Marquise Bezel East/West">Marquise Bezel East/West</option>
+              <option value="Marquise Bezel North/South">Marquise Bezel North/South</option>
+              <option value="Emerald East/West">Emerald East/West</option>
+              <option value="Emerald North/South">Emerald North/South</option>
+              <option value="Emerald Bezel East/West">Emerald Bezel East/West</option>
+              <option value="Emerald Bezel North/South">Emerald Bezel North/South</option>
+              <option value="Pear East/West">Pear East/West</option>
+              <option value="Pear North/South">Pear North/South</option>
+              <option value="Pear Bezel East/West">Pear Bezel East/West</option>
+              <option value="Pear Bezel North/South">Pear Bezel North/South</option>
+              <option value="Radiant East/West">Radiant East/West</option>
+              <option value="Radiant North/South">Radiant North/South</option>
+              <option value="Radiant Bezel East/West">Radiant Bezel East/West</option>
+              <option value="Radiant Bezel North/South">Radiant Bezel North/South</option>
+              <option value="Cushion">Cushion</option>
+              <option value="Cushion Bezel">Cushion Bezel</option>
+              <option value="Cushion Half Bezel">Cushion Half Bezel</option>
+              <option value="Fancy Mix">Fancy Mix</option>
+              <option value="Fancy Mix Bezel">Fancy Mix Bezel</option>
+            </select>
+          </div>
+          <div class="field"><label>Date</label><input id="f_date" type="date"></div>
+          <div class="field"><label>Gross Wt (g)</label><input id="f_grossWt" type="number" step="0.001" placeholder="0.000"></div>
+          <div class="field"><label>Net Wt (g) *</label><input id="f_netWt" type="number" step="0.001" placeholder="0.000"><div class="field-error" id="err_f_netWt"></div></div>
+          <div class="field"><label>Multiplier</label><input id="f_multiplier" type="number" step="0.001" value="0.595"></div>
+          <div class="field"><label>Dia Qty</label><input id="f_diaQty" type="number" step="1" placeholder="0"></div>
+          <div class="field"><label>IN CT</label><input id="f_inCt" type="number" step="0.01" placeholder="0.00"></div>
+          <div class="field"><label>Colour Stone</label><input id="f_colourStone" type="number" step="1" placeholder="0"></div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-card-title">Cost Breakdown</div>
+        <div class="fields-grid compact">
+          <div class="field"><label>Diamond Amount (₹)</label><input id="f_diamAmount" type="number" step="1" placeholder="0"></div>
+          <div class="field"><label>L Charges (₹/g)</label><input id="f_lCharges" type="number" step="1" placeholder="900"></div>
+          <div class="field full-width">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;text-transform:none;letter-spacing:0;font-weight:400;color:var(--md-on-surface-variant);">
+              <input type="checkbox" id="f_flatLabor" style="width:16px;height:16px;"> Flat labor — fixed amount (don't multiply by weight)
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-preview-bottom">
+        <div class="computed-preview compact" style="margin:0;">
+          <div class="computed-row"><span class="label">Pg Wt</span><span class="value" id="prev_pgWt">—</span></div>
+          <div class="computed-row"><span class="label">Gold Amount</span><span class="value" id="prev_goldAmt">—</span></div>
+          <div class="computed-row"><span class="label">Labor Amount</span><span class="value" id="prev_laborAmt">—</span></div>
+          <div class="computed-row"><span class="label">Sub Total</span><span class="value" id="prev_subTotal">—</span></div>
+          <div class="computed-row"><span class="label">USD ($)</span><span class="value" id="prev_usd">—</span></div>
+        </div>
+        <p class="computed-note" style="margin-bottom:0;font-size:11px;">Pg Wt = Net Wt × Multiplier | Gold = Pg Wt × Rate | Labor = Net Wt × L Charges | $ = Sub Total ÷ 94</p>
+      </div>
+    </div>
+
+    <!-- ===== TAB 3: SALE & PAYMENT ===== -->
+    <div id="tab-sale" class="tab-content">
+      <div class="section-card">
+        <div class="section-card-title">Sale Details</div>
+        <div class="fields-grid">
+          <div class="field"><label>Memo No.</label><input id="f_memoNo" placeholder="e.g. MEMO-014"></div>
+          <div class="field"><label>Sold To (Buyer)</label><input id="f_soldTo" list="buyersDatalist" autocomplete="off" placeholder="e.g. Priya Shah"><input type="hidden" id="f_soldToBuyerId"></div>
+          <div class="field"><label>Sale Price ($)</label><input id="f_salePrice" type="number" step="1" placeholder="0"><div class="field-error" id="err_f_salePrice"></div></div>
+          <div class="field"><label>Date Sold</label><input id="f_dateSold" type="date"></div>
+        </div>
+        <div id="memoSummary" style="display:none;margin-top:var(--space-3);"></div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-card-title">Installments</div>
+        <div id="installmentChips" class="installment-chips"></div>
+        <div class="fields-grid">
+          <div class="field"><input id="f_instAmount" type="number" step="1" min="0" placeholder="Amount $"></div>
+          <div class="field"><input id="f_instDate" type="date"></div>
+        </div>
+        <div class="installment-add-row" style="display:flex;align-items:center;gap:var(--space-3);margin-top:var(--space-2);">
+          <button class="btn secondary small" id="addInstallmentBtn" type="button" style="flex:1;">+ Add installment</button>
+          <span id="f_remainingBalance" class="remaining-balance-tag"></span>
+        </div>
+        <div class="field-error" id="err_f_installment"></div>
+      </div>
+
+      <div class="section-card sticky-preview-card">
+        <div class="section-card-title">Payment Summary</div>
+        <div class="computed-preview compact" style="margin:0;">
+          <div class="computed-row"><span class="label">Amount Paid</span><span class="value" id="prev_amountPaid">$0</span></div>
+          <div class="computed-row"><span class="label">Balance Due</span><span class="value" id="prev_balanceDue">—</span></div>
+          <div class="computed-row"><span class="label">Payment Status</span><span class="value" id="prev_paymentStatus">Not Sold</span></div>
+        </div>
+      </div>
+
+      <div id="saveMsg"></div>
+    </div>
+
+  </div>
+
+  <div class="panel-foot">
+    <button id="deleteBtn" style="display:none;"><span id="deleteText">Delete</span></button>
+    <button class="btn" id="saveBtn" style="flex:1;">Save</button>
+  </div>
+</div>
+
+<!-- ============ TRADING PANEL ============ -->
+<div id="tradeOverlay"></div>
+<div id="tradePanel">
+  <div class="panel-head">
+    <h2 id="tradePanelTitle">New Trade</h2>
+    <span id="tradePanelStatusBadge" class="status-badge status-not-sold" style="display:none;">Not Sold</span>
+    <button id="closeTradePanel">&times;</button>
+  </div>
+
+  <!-- Memo Banner (injected by JS when memo exists) -->
+  <div id="tradePanelMemoBanner" class="panel-memo-banner" style="display:none;"></div>
+
+  <div class="panel-tabs">
+    <button class="panel-tab active" data-tab="tab-trade-costs">Cost</button>
+    <button class="panel-tab" data-tab="tab-trade-payment">Payment</button>
+  </div>
+
+  <div class="panel-body">
+
+    <!-- ===== TAB 1: COST ===== -->
+    <div id="tab-trade-costs" class="tab-content active">
+      <div class="section-card">
+        <div class="section-card-title">Item Details</div>
+        <div class="fields-grid">
+          <div class="field full-width"><label>Item *</label><input id="t_item" placeholder="e.g. Diamond Bracelet"><div class="field-error" id="err_t_item"></div></div>
+          <div class="field full-width"><label>Vendor *</label><input id="t_vendor" placeholder="e.g. Rakesh Jewellers"><div class="field-error" id="err_t_vendor"></div></div>
+          <div class="field"><label>Date</label><input id="t_date" type="date"></div>
+          <div class="field"><label>Purchase Price ($) *</label><input id="t_purchasePrice" type="number" step="1" placeholder="0"><div class="field-error" id="err_t_purchasePrice"></div></div>
+          <div class="field full-width"><label>Notes</label><input id="t_notes" placeholder="Any notes…"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TAB 2: PAYMENT ===== -->
+    <div id="tab-trade-payment" class="tab-content">
+      <div class="section-card">
+        <div class="section-card-title">Sale Details</div>
+        <div class="fields-grid">
+          <div class="field"><label>Memo No.</label><input id="t_memoNo" placeholder="e.g. MEMO-014"></div>
+          <div class="field"><label>Sold To (Buyer)</label><input id="t_soldTo" list="buyersDatalist" autocomplete="off" placeholder="e.g. Priya Shah"><input type="hidden" id="t_soldToBuyerId"></div>
+          <div class="field"><label>Sale Price ($)</label><input id="t_salePrice" type="number" step="1" placeholder="0"><div class="field-error" id="err_t_salePrice"></div></div>
+          <div class="field"><label>Date Sold</label><input id="t_dateSold" type="date"></div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-card-title">Installments</div>
+        <div id="tradeInstallmentsList" class="installment-chips"></div>
+        <div class="fields-grid">
+          <div class="field"><input id="t_instAmount" type="number" step="1" min="0" placeholder="Amount $"></div>
+          <div class="field"><input id="t_instDate" type="date"></div>
+        </div>
+        <div class="installment-add-row" style="display:flex;align-items:center;gap:var(--space-3);margin-top:var(--space-2);">
+          <button class="btn secondary small" id="addTradeInstallmentBtn" type="button" style="flex:1;">+ Add installment</button>
+          <span id="t_remainingBalance" class="remaining-balance-tag"></span>
+        </div>
+        <div class="field-error" id="err_t_installment"></div>
+      </div>
+
+      <div class="section-card sticky-preview-card">
+        <div class="section-card-title">Payment Summary</div>
+        <div class="computed-preview compact" style="margin:0;">
+          <div class="computed-row"><span class="label">Profit / Loss</span><span class="value" id="t_prev_profit" style="color:var(--text-dim)">—</span></div>
+          <div class="computed-row"><span class="label">Amount Paid</span><span class="value" id="t_prev_amountPaid">—</span></div>
+          <div class="computed-row"><span class="label">Balance Due</span><span class="value" id="t_prev_balanceDue">—</span></div>
+          <div class="computed-row"><span class="label">Payment Status</span><span class="value" id="t_prev_paymentStatus">—</span></div>
+        </div>
+      </div>
+
+      <div id="tradeSaveMsg"></div>
+    </div>
+
+  </div>
+  <div class="panel-foot">
+    <button id="deleteTradeBtn" style="display:none;"><span id="deleteTradeText">Delete</span></button>
+    <button class="btn" id="saveTradeBtn" style="flex:1;">Save</button>
+  </div>
+</div>
+
+<!-- ============ EXPENSES PANEL ============ -->
+<div id="expenseOverlay"></div>
+<div id="expensePanel">
+  <div class="panel-head">
+    <h2 id="expensePanelTitle">New Expense</h2>
+    <button id="closeExpensePanel">&times;</button>
+  </div>
+  <div class="panel-body">
+    <div class="section-card">
+      <div class="section-card-title">Expense Details</div>
+      <div class="fields-grid">
+        <div class="field"><label>Date *</label><input id="e_date" type="date"><div class="field-error" id="err_e_date"></div></div>
+        <div class="field"><label>Category *</label>
+          <select id="e_category">
+            <option value="Travel">Travel</option>
+            <option value="Food">Food</option>
+            <option value="Accommodation">Accommodation</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Office">Office</option>
+            <option value="Shipping">Shipping</option>
+            <option value="Misc">Misc</option>
+          </select>
+          <div class="field-error" id="err_e_category"></div>
+        </div>
+        <div class="field full-width"><label>Description</label><input id="e_description" placeholder="e.g. Flight to Mumbai"></div>
+        <div class="field"><label>Amount ($) *</label><input id="e_amount" type="number" step="0.01" placeholder="0.00"><div class="field-error" id="err_e_amount"></div></div>
+        <div class="field"><label>Seller</label><input id="e_seller" placeholder="e.g. Aakash"></div>
+        <div class="field full-width"><label>Notes</label><input id="e_notes" placeholder="Any notes…"></div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-card-title">Reimbursement</div>
+      <div class="fields-grid">
+        <div class="field full-width">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;text-transform:none;letter-spacing:0;font-weight:400;color:var(--md-on-surface-variant);">
+            <input type="checkbox" id="e_reimbursed" style="width:16px;height:16px;"> Reimbursed
+          </label>
+        </div>
+        <div class="field full-width" id="e_reimbursementDateWrap" style="display:none;">
+          <label>Reimbursement Date</label>
+          <input id="e_reimbursementDate" type="date">
+        </div>
+      </div>
+    </div>
+
+    <div id="expenseSaveMsg"></div>
+  </div>
+  <div class="panel-foot">
+    <button id="deleteExpenseBtn" style="display:none;"><span>Delete</span></button>
+    <button class="btn" id="saveExpenseBtn" style="flex:1;">Save</button>
+  </div>
+</div>
+
+<!-- ============ RECEIVE PAYMENT ============ -->
+<div id="paymentSearchOverlay"></div>
+<div id="paymentSearchModal">
+  <div class="panel-head"><h2>Receive Payment</h2><button id="closePaymentSearch">&times;</button></div>
+  <div class="pay-search-body">
+    <input id="paySearchInput" placeholder="Search memo no., buyer, style, or customer…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" onfocus="this.setAttribute('readonly','readonly');setTimeout(()=>this.removeAttribute('readonly'),1)">
+    <div id="payResults" class="pay-results"></div>
+  </div>
+</div>
+
+<!-- ============ CUSTOMER PROFILE ============ -->
+<div id="customerProfileOverlay" class="overlay-fade"></div>
+<div id="customerProfileModal" class="side-modal">
+  <div class="panel-head"><h2 id="customerProfileName">Customer</h2><button id="closeCustomerProfile">&times;</button></div>
+  <div class="side-modal-body">
+    <div class="kpi-grid" id="customerProfileKPIs"></div>
+    <div id="customerProfileItems"></div>
+  </div>
+</div>
+
+<!-- ============ MEMO DETAIL ============
+     Opens on top of Customer Profile (and anywhere else a memo number is
+     shown), so it needs a higher z-index than the standard side-modal. -->
+<div id="memoDetailOverlay" class="overlay-fade"></div>
+<div id="memoDetailModal" class="side-modal">
+  <div class="panel-head"><h2 id="memoDetailTitle">Memo</h2><button id="closeMemoDetail">&times;</button></div>
+  <div class="side-modal-body">
+    <div class="kpi-grid" id="memoDetailKPIs"></div>
+    <div id="memoDetailItems"></div>
+  </div>
+</div>
+
+<!-- Floating hover-preview card for memo links; positioned via JS -->
+<div id="memoHoverPreview" class="memo-hover-preview"></div>
+
+<!-- ============ INSIGHTS ============ -->
+<div id="insightsOverlay" class="overlay-fade"></div>
+<div id="insightsModal" class="side-modal side-modal-wide">
+  <div class="panel-head"><h2>Insights</h2><button id="closeInsights">&times;</button></div>
+  <div class="insights-tabs">
+    <button class="insights-tab-btn active" data-target="insightsVendorsTab">Vendor Profitability</button>
+    <button class="insights-tab-btn" data-target="insightsBestSellersTab">Best Sellers</button>
+    <button class="insights-tab-btn" data-target="insightsProfitTrendTab">Profit Trend</button>
+  </div>
+  <div class="side-modal-body">
+    <div id="insightsVendorsTab" class="insights-tab-content active"></div>
+    <div id="insightsBestSellersTab" class="insights-tab-content">
+      <div class="insights-chart-controls">
+        <label for="seasonalDimensionSelect">Seasonal trend by</label>
+        <select id="seasonalDimensionSelect" class="filter-pill" style="width:auto;">
+          <option value="type">Jewelry Type</option>
+          <option value="shape">Diamond Shape</option>
+        </select>
+      </div>
+      <div class="insights-chart-wrap"><canvas id="seasonalChart"></canvas><div id="seasonalChartEmpty" class="chart-empty-msg" style="display:none;">No sold orders yet</div></div>
+      <div id="bestSellersTables"></div>
+    </div>
+    <div id="insightsProfitTrendTab" class="insights-tab-content">
+      <div class="insights-chart-controls">
+        <label for="profitTrendGranularity">Group by</label>
+        <select id="profitTrendGranularity" class="filter-pill" style="width:auto;">
+          <option value="month">Month</option>
+          <option value="quarter">Quarter</option>
+        </select>
+      </div>
+      <div class="insights-chart-wrap"><canvas id="profitTrendChart"></canvas><div id="profitTrendChartEmpty" class="chart-empty-msg" style="display:none;">No sold items yet</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Suggestions for the Sold To fields; populated at runtime from BUYERS -->
+<datalist id="buyersDatalist"></datalist>
+
+<!-- ============ BUYERS ============ -->
+<div id="buyersOverlay" class="overlay-fade"></div>
+<div id="buyersModal" class="side-modal side-modal-wide">
+  <div class="panel-head"><h2>Buyers</h2><button id="closeBuyers">&times;</button></div>
+  <div class="side-modal-body">
+    <div style="display:flex;gap:var(--space-3);margin-bottom:var(--space-4);">
+      <input type="text" id="buyerSearchInput" class="filter-pill" placeholder="Search buyers…" style="flex:1;" autocomplete="off">
+      <button class="btn small" id="newBuyerBtn">+ Buyer</button>
+    </div>
+    <div id="buyerListContainer"></div>
+  </div>
+</div>
+
+<!-- ============ BUYER EDIT PANEL ============ -->
+<div id="buyerFormOverlay" class="overlay-fade"></div>
+<div id="buyerFormModal" class="side-modal">
+  <div class="panel-head"><h2 id="buyerFormTitle">New Buyer</h2><button id="closeBuyerForm">&times;</button></div>
+  <div class="side-modal-body">
+    <div class="field">
+      <label>Name</label>
+      <input id="b_name" placeholder="e.g. Priya Shah">
+      <div class="field-error" id="err_b_name"></div>
+    </div>
+    <div class="field">
+      <label>Phone</label>
+      <input id="b_phone" placeholder="e.g. +91 98765 43210">
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <input id="b_email" placeholder="optional">
+    </div>
+    <div class="field">
+      <label>Address</label>
+      <input id="b_address" placeholder="optional">
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea id="b_notes" rows="3" placeholder="ring size, preferences, etc."></textarea>
+    </div>
+    <div style="display:flex;gap:var(--space-3);margin-top:var(--space-4);">
+      <button class="btn" id="deleteBuyerBtn" style="display:none;background:var(--error);color:#fff;"><span>Delete</span></button>
+      <button class="btn" id="saveBuyerBtn" style="flex:1;">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="screenFx"></div>
+<div id="toast"></div>
+<div id="undoToast">
+  <span class="undo-msg">Order deleted — <span class="undo-count" id="undoCount">60</span>s left</span>
+  <button id="undoBtn">Undo</button>
+</div>
+<div id="toastContainer" class="toast-container"></div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+<!-- App scripts — load order matters -->
+<script src="js/utils.js?v=4"></script>
+<script src="js/diamond-shape.js?v=1"></script>
+<script src="js/api.js?v=4"></script>
+<script src="js/firebase.js?v=4"></script>
+<script src="js/app.js?v=7"></script>
+<script src="js/dashboard.js?v=6"></script>
+<script src="js/filters.js?v=4"></script>
+<script src="js/panel.js?v=5"></script>
+<script src="js/table.js?v=5"></script>
+<script src="js/payments.js?v=5"></script>
+<script src="js/trading.js?v=5"></script>
+<script src="js/expenses.js?v=3"></script>
+<script src="js/chart.js?v=1"></script>
+<script src="js/insights.js?v=8"></script>
+<script src="js/buyers.js?v=6"></script>
+<button id="mobileFab" class="mobile-fab" style="display:none;">+</button>
+</body>
+</html>
