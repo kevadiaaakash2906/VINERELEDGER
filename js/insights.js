@@ -252,92 +252,24 @@ function renderVendorReport() {
 
   target.innerHTML =
     '<table class="report-table"><thead><tr>' +
-    '<th>Vendor</th><th class="num">Items</th><th class="num">Sold</th>' +
-    '<th class="num">Invested</th><th class="num">Sales</th><th class="num">Profit</th>' +
+    '<th>Vendor</th><th class="num">Items</th>' +
+    '<th class="num">Invested</th><th class="num">Sales</th><th class="num">Profit</th><th class="num">Profit %</th>' +
     '</tr></thead><tbody>' +
     rows.map(function(r) {
+      var profitPct = r.invested > 0 ? (r.profit / r.invested) * 100 : null;
       return '<tr>' +
         '<td>' + escapeHtml(r.vendor) + '</td>' +
         '<td class="num">' + r.count + '</td>' +
-        '<td class="num">' + r.sold + '</td>' +
         '<td class="num">$' + fmtMoney(r.invested) + '</td>' +
         '<td class="num">$' + fmtMoney(r.sales) + '</td>' +
         '<td class="num" style="color:' + (r.profit >= 0 ? 'var(--success)' : 'var(--error)') + '">' +
         (r.profit >= 0 ? '+' : '-') + '$' + fmtMoney(Math.abs(r.profit)) + '</td>' +
+        '<td class="num" style="color:' + (profitPct === null ? 'var(--text-dim)' : (profitPct >= 0 ? 'var(--success)' : 'var(--error)')) + '">' +
+        (profitPct === null ? '—' : (profitPct >= 0 ? '+' : '') + profitPct.toFixed(1) + '%') + '</td>' +
         '</tr>';
     }).join('') +
     '</tbody></table>';
 }
-
-/* ============ BUYER PROFITABILITY ============
-   Profit attributed to each BUYER ("Sold To"), combining Orders and
-   Trading — this is the counterpart to Vendor Profitability, which looks
-   at who items were sourced FROM. This looks at who they were sold TO. */
-
-function renderBuyerProfitability() {
-  var buyers = {};
-
-  function addToBuyer(name, cost, sale, sold) {
-    var buyer = (name || 'Unknown').trim() || 'Unknown';
-    if (!buyer || buyer === 'Unknown' && !sold) return; // skip blank Sold To on unsold items
-    if (!buyers[buyer]) buyers[buyer] = { count: 0, sold: 0, invested: 0, sales: 0, profit: 0 };
-    buyers[buyer].count++;
-    buyers[buyer].invested += cost;
-    if (sold) {
-      buyers[buyer].sales += sale;
-      buyers[buyer].profit += (sale - cost);
-      buyers[buyer].sold++;
-    }
-  }
-
-  ORDERS.forEach(function(o) {
-    var sale = parseFloat(o[DK.salePrice]) || 0;
-    if (!o[DK.soldTo] && !sale) return; // not sold, no buyer — nothing to attribute
-    addToBuyer(o[DK.soldTo], parseFloat(o[DK.usd]) || 0, sale, !!sale);
-  });
-  TRADING.forEach(function(t) {
-    var sale = parseFloat(t[SHEET_KEYS.salePrice]) || 0;
-    if (!t[SHEET_KEYS.soldTo] && !sale) return;
-    addToBuyer(t[SHEET_KEYS.soldTo], parseFloat(t[SHEET_KEYS.purchasePrice]) || 0, sale, !!sale);
-  });
-
-  var rows = Object.keys(buyers).map(function(b) {
-    var r = buyers[b];
-    r.buyer = b;
-    return r;
-  });
-  rows.sort(function(a, b) { return b.profit - a.profit; });
-
-  var target = $('insightsBuyersTab');
-  if (!target) return;
-  if (!rows.length) {
-    target.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim);">No sold items yet</div>';
-    return;
-  }
-
-  target.innerHTML =
-    '<table class="report-table"><thead><tr>' +
-    '<th>Buyer</th><th class="num">Items</th><th class="num">Sold</th>' +
-    '<th class="num">Cost</th><th class="num">Sales</th><th class="num">Profit</th>' +
-    '</tr></thead><tbody>' +
-    rows.map(function(r) {
-      return '<tr>' +
-        '<td><span class="soldto-link" data-customer="' + escapeHtml(r.buyer) + '">' + escapeHtml(r.buyer) + '</span></td>' +
-        '<td class="num">' + r.count + '</td>' +
-        '<td class="num">' + r.sold + '</td>' +
-        '<td class="num">$' + fmtMoney(r.invested) + '</td>' +
-        '<td class="num">$' + fmtMoney(r.sales) + '</td>' +
-        '<td class="num" style="color:' + (r.profit >= 0 ? 'var(--success)' : 'var(--error)') + '">' +
-        (r.profit >= 0 ? '+' : '-') + '$' + fmtMoney(Math.abs(r.profit)) + '</td>' +
-        '</tr>';
-    }).join('') +
-    '</tbody></table>';
-
-  target.querySelectorAll('.soldto-link').forEach(function(el) {
-    el.addEventListener('click', function() { window.openCustomerProfile(el.dataset.customer); });
-  });
-}
-
 /* ============ BEST SELLERS: JEWELRY TYPE / DIAMOND SHAPE ============ */
 
 function renderBestSellers() {
@@ -347,22 +279,27 @@ function renderBestSellers() {
   ORDERS.forEach(function(o) {
     var sale = parseFloat(o[DK.salePrice]) || 0;
     if (!sale) return; // only count items that actually sold
+    var cost = parseFloat(o[DK.usd]) || 0;
 
     var type = (o[DK.jewelryType] || 'Unspecified').trim() || 'Unspecified';
-    if (!types[type]) types[type] = { count: 0, revenue: 0 };
+    if (!types[type]) types[type] = { count: 0, revenue: 0, cost: 0 };
     types[type].count++;
     types[type].revenue += sale;
+    types[type].cost += cost;
 
     var shape = (o[DK.diamondShape] || 'Unspecified').trim() || 'Unspecified';
-    if (!shapes[shape]) shapes[shape] = { count: 0, revenue: 0 };
+    if (!shapes[shape]) shapes[shape] = { count: 0, revenue: 0, cost: 0 };
     shapes[shape].count++;
     shapes[shape].revenue += sale;
+    shapes[shape].cost += cost;
   });
 
   function buildTable(map, label) {
     var rows = Object.keys(map).map(function(k) {
       var r = map[k];
       r.name = k;
+      r.profit = r.revenue - r.cost;
+      r.profitPct = r.cost > 0 ? (r.profit / r.cost) * 100 : null;
       return r;
     });
     rows.sort(function(a, b) { return b.count - a.count; });
@@ -371,21 +308,25 @@ function renderBestSellers() {
         '<div style="padding:8px 0;color:var(--text-dim);">No sold orders yet</div>';
     }
     return '<h4 style="margin:16px 0 8px;font-size:13px;color:var(--md-on-surface-variant);">' + label + '</h4>' +
-      '<table class="report-table"><thead><tr><th>' + label + '</th><th class="num">Sold</th><th class="num">Revenue</th></tr></thead><tbody>' +
+      '<table class="report-table"><thead><tr><th>' + label + '</th><th class="num">Sold</th><th class="num">Revenue</th><th class="num">Avg Profit %</th></tr></thead><tbody>' +
       rows.map(function(r) {
-        return '<tr><td>' + escapeHtml(r.name) + '</td><td class="num">' + r.count + '</td><td class="num">$' + fmtMoney(r.revenue) + '</td></tr>';
+        return '<tr><td>' + escapeHtml(r.name) + '</td><td class="num">' + r.count + '</td><td class="num">$' + fmtMoney(r.revenue) + '</td>' +
+          '<td class="num" style="color:' + (r.profitPct === null ? 'var(--text-dim)' : (r.profitPct >= 0 ? 'var(--success)' : 'var(--error)')) + '">' +
+          (r.profitPct === null ? '—' : (r.profitPct >= 0 ? '+' : '') + r.profitPct.toFixed(1) + '%') + '</td></tr>';
       }).join('') +
       '</tbody></table>';
   }
 
-  $('insightsBestSellersTab').innerHTML = buildTable(types, 'Jewelry Type') + buildTable(shapes, 'Diamond Shape');
+  $('bestSellersTables').innerHTML = buildTable(types, 'Jewelry Type') + buildTable(shapes, 'Diamond Shape');
 }
 
 /* ============ INSIGHTS MODAL (shared shell) ============ */
 
 window.openInsights = function() {
+  // Only render the tab that's actually visible on open — a Chart.js
+  // canvas sized while its tab is display:none ends up 0x0 and never
+  // recovers, so the other two charts render lazily on first tab switch.
   renderVendorReport();
-  renderBestSellers();
   $('insightsOverlay').classList.add('open');
   $('insightsModal').classList.add('open');
 };
@@ -404,5 +345,20 @@ document.querySelectorAll('.insights-tab-btn').forEach(function(btn) {
     document.querySelectorAll('.insights-tab-content').forEach(function(c) { c.classList.remove('active'); });
     btn.classList.add('active');
     $(btn.dataset.target).classList.add('active');
+
+    if (btn.dataset.target === 'insightsBestSellersTab') {
+      renderBestSellers();
+      renderSeasonalChart($('seasonalDimensionSelect').value);
+    } else if (btn.dataset.target === 'insightsProfitTrendTab') {
+      renderProfitTrend($('profitTrendGranularity').value);
+    }
   });
 });
+
+$('seasonalDimensionSelect').addEventListener('change', function() {
+  renderSeasonalChart(this.value);
+});
+$('profitTrendGranularity').addEventListener('change', function() {
+  renderProfitTrend(this.value);
+});
+
