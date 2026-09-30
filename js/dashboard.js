@@ -61,14 +61,14 @@ function renderKPIs() {
   var stockCount = notSold.length;
   var stockCost = notSold.reduce(function(s, r) {
     var net = parseFloat(r[DK.netWt]) || 0;
-    var mult = parseFloat(r[DK.multiplier]) || 0.595;
+    var mult = parseFloat(r[DK.multiplier]) || window.APP_CONFIG.defaultMultiplier;
     var pgWt = net * mult;
     var goldRate = window.GOLD_RATE || 16000;
     var gold = pgWt * goldRate;
     var labor = parseFloat(r[DK.laborAmt]) || 0;
     var diam = parseFloat(r[DK.diamAmount]) || 0;
     var sub = gold + labor + diam;
-    return s + (sub / 94);
+    return s + (sub / window.APP_CONFIG.usdRate);
   }, 0);
 
   $('hstat_1_label').textContent = 'Profit / Loss';
@@ -101,7 +101,7 @@ function renderKPIs() {
     '<div class="kpi-sub">across all orders</div></div>' +
     '<div class="kpi-card"><div class="kpi-label">Stock on Hand</div>' +
     '<div class="kpi-value">' + stockCount + '</div>' +
-    '<div class="kpi-sub">unsold items worth $' + fmtMoney(stockCost) + ' <span style="font-size:11px;color:var(--text-dim)">(@ ₹' + (window.GOLD_RATE || 16000).toLocaleString('en-IN') + '/gm)</span></div></div>';
+    '<div class="kpi-sub">unsold items worth $' + fmtMoney(stockCost) + ' <span style="font-size:calc(11px * var(--font-scale) / 100);color:var(--text-dim)">(@ ₹' + (window.GOLD_RATE || 16000).toLocaleString('en-IN') + '/gm)</span></div></div>';
 }
 
 function renderTradeKPIs() {

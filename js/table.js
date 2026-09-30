@@ -72,7 +72,7 @@ function renderTable() {
       var sub;
       if (isUnsold) {
         var net = parseFloat(r[DK.netWt]) || 0;
-        var mult = parseFloat(r[DK.multiplier]) || 0.595;
+        var mult = parseFloat(r[DK.multiplier]) || window.APP_CONFIG.defaultMultiplier;
         var pgWt = net * mult;
         var goldRate = window.GOLD_RATE || 16000;
         var gold = pgWt * goldRate;
@@ -91,14 +91,14 @@ function renderTable() {
       var status = (r[DK.paymentStatus] || 'Not Sold').trim();
       if (status === 'Not Sold') {
         var net = parseFloat(r[DK.netWt]) || 0;
-        var mult = parseFloat(r[DK.multiplier]) || 0.595;
+        var mult = parseFloat(r[DK.multiplier]) || window.APP_CONFIG.defaultMultiplier;
         var pgWt = net * mult;
         var goldRate = window.GOLD_RATE || 16000;
         var gold = pgWt * goldRate;
         var labor = parseFloat(r[DK.laborAmt]) || 0;
         var diam = parseFloat(r[DK.diamAmount]) || 0;
         var sub = gold + labor + diam;
-        var usd = sub / 94;
+        var usd = sub / window.APP_CONFIG.usdRate;
         return usd ? '$' + usd.toFixed(2) : '';
       }
       return r[DK.usd] ? '$' + parseFloat(r[DK.usd]).toFixed(2) : '';
@@ -171,7 +171,7 @@ function renderCards(rows) {
 
   if (!rows.length) {
     var msg = q ? 'No orders match "' + escapeHtml(q) + '"' : 'No orders found';
-    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:14px;">' + msg + '</div>';
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:calc(14px * var(--font-scale) / 100);">' + msg + '</div>';
     return;
   }
 
@@ -204,14 +204,14 @@ function renderCards(rows) {
     var usdVal;
     if (status === 'Not Sold') {
       var net = parseFloat(r[DK.netWt]) || 0;
-      var mult = parseFloat(r[DK.multiplier]) || 0.595;
+      var mult = parseFloat(r[DK.multiplier]) || window.APP_CONFIG.defaultMultiplier;
       var pgWt = net * mult;
       var goldRate = window.GOLD_RATE || 16000;
       var gold = pgWt * goldRate;
       var labor = parseFloat(r[DK.laborAmt]) || 0;
       var diam = parseFloat(r[DK.diamAmount]) || 0;
       var sub = gold + labor + diam;
-      usdVal = sub ? '$' + (sub / 94).toFixed(2) : '—';
+      usdVal = sub ? '$' + (sub / window.APP_CONFIG.usdRate).toFixed(2) : '—';
     } else {
       usdVal = r[DK.usd] ? '$' + parseFloat(r[DK.usd]).toFixed(2) : '—';
     }
@@ -232,23 +232,23 @@ function renderCards(rows) {
         '<div class="card-header" onclick="window.toggleCard(this)" style="padding:10px 14px;">' +
         '<div class="card-header-left" style="gap:2px;">' +
         '<span style="display:flex;align-items:center;gap:6px;">' +
-        '<span class="card-sr-badge" style="min-width:28px;height:24px;padding:0 8px;font-size:12px;">#' + sr + '</span>' +
-        '<span class="card-title" style="font-size:15px;">' + highlightText(style, q) + '</span>' +
+        '<span class="card-sr-badge" style="min-width:28px;height:24px;padding:0 8px;font-size:calc(12px * var(--font-scale) / 100);">#' + sr + '</span>' +
+        '<span class="card-title" style="font-size:calc(15px * var(--font-scale) / 100);">' + highlightText(style, q) + '</span>' +
         '</span>' +
-        '<span class="card-meta" style="font-size:12px;">' + escapeHtml(customer) + ' · ' + date + '</span>' +
+        '<span class="card-meta" style="font-size:calc(12px * var(--font-scale) / 100);">' + escapeHtml(customer) + ' · ' + date + '</span>' +
         '</div>' +
         '<div class="card-header-right" style="gap:6px;">' +
-        '<span class="status-badge ' + statusClass + '" style="font-size:11px;padding:2px 8px;">' + status + '</span>' +
-        '<span class="card-chevron" style="font-size:10px;">▼</span>' +
+        '<span class="status-badge ' + statusClass + '" style="font-size:calc(11px * var(--font-scale) / 100);padding:2px 8px;">' + status + '</span>' +
+        '<span class="card-chevron" style="font-size:calc(10px * var(--font-scale) / 100);">▼</span>' +
         '</div>' +
         '</div>' +
         '<div class="card-summary" style="grid-template-columns:repeat(3,1fr);gap:4px 8px;padding:8px 14px;background:var(--md-surface-1);">' +
-        '<div class="card-sum-row" style="gap:0;"><span style="font-size:10px;">Type</span><span style="font-size:13px;">' + escapeHtml(r[DK.jewelryType] || '—') + '</span></div>' +
-        '<div class="card-sum-row" style="gap:0;"><span style="font-size:10px;">IN CT</span><span style="font-size:13px;">' + inCt + '</span></div>' +
-        '<div class="card-sum-row" style="gap:0;"><span style="font-size:10px;">USD</span><span style="font-size:13px;">' + usdVal + '</span></div>' +
-        '<div class="card-sum-row" style="gap:0;"><span style="font-size:10px;">P / L</span><span style="font-size:13px;color:' + plColor + '">' + plVal + '</span></div>' +
-        '<div class="card-sum-row" style="gap:0;"><span style="font-size:10px;">Memo</span><span style="font-size:13px;">' + (memoNo ? escapeHtml(memoNo) : '—') + '</span></div>' +
-        '<div class="card-sum-row" style="gap:0;grid-column:span 2;"><span style="font-size:10px;">Sold To</span><span style="font-size:13px;">' + (soldTo ? escapeHtml(soldTo) : '—') + '</span></div>' +
+        '<div class="card-sum-row" style="gap:0;"><span style="font-size:calc(10px * var(--font-scale) / 100);">Type</span><span style="font-size:calc(13px * var(--font-scale) / 100);">' + escapeHtml(r[DK.jewelryType] || '—') + '</span></div>' +
+        '<div class="card-sum-row" style="gap:0;"><span style="font-size:calc(10px * var(--font-scale) / 100);">IN CT</span><span style="font-size:calc(13px * var(--font-scale) / 100);">' + inCt + '</span></div>' +
+        '<div class="card-sum-row" style="gap:0;"><span style="font-size:calc(10px * var(--font-scale) / 100);">USD</span><span style="font-size:calc(13px * var(--font-scale) / 100);">' + usdVal + '</span></div>' +
+        '<div class="card-sum-row" style="gap:0;"><span style="font-size:calc(10px * var(--font-scale) / 100);">P / L</span><span style="font-size:calc(13px * var(--font-scale) / 100);color:' + plColor + '">' + plVal + '</span></div>' +
+        '<div class="card-sum-row" style="gap:0;"><span style="font-size:calc(10px * var(--font-scale) / 100);">Memo</span><span style="font-size:calc(13px * var(--font-scale) / 100);">' + (memoNo ? escapeHtml(memoNo) : '—') + '</span></div>' +
+        '<div class="card-sum-row" style="gap:0;grid-column:span 2;"><span style="font-size:calc(10px * var(--font-scale) / 100);">Sold To</span><span style="font-size:calc(13px * var(--font-scale) / 100);">' + (soldTo ? escapeHtml(soldTo) : '—') + '</span></div>' +
         '</div>' +
         '<div class="card-body">' +
         '<div class="card-row" style="padding:6px 0;"><span class="card-label">Gross Wt</span><span class="card-value">' + (r[DK.grossWt] || '—') + 'g</span></div>' +
@@ -274,7 +274,7 @@ function renderCards(rows) {
         var sub;
         if (st === 'Not Sold') {
           var net = parseFloat(r[DK.netWt]) || 0;
-          var mult = parseFloat(r[DK.multiplier]) || 0.595;
+          var mult = parseFloat(r[DK.multiplier]) || window.APP_CONFIG.defaultMultiplier;
           var pgWt = net * mult;
           var goldRate = window.GOLD_RATE || 16000;
           var gold = pgWt * goldRate;
@@ -293,14 +293,14 @@ function renderCards(rows) {
     var usdValDefault;
     if ((r[DK.paymentStatus] || 'Not Sold').trim() === 'Not Sold') {
       var net = parseFloat(r[DK.netWt]) || 0;
-      var mult = parseFloat(r[DK.multiplier]) || 0.595;
+      var mult = parseFloat(r[DK.multiplier]) || window.APP_CONFIG.defaultMultiplier;
       var pgWt = net * mult;
       var goldRate = window.GOLD_RATE || 16000;
       var gold = pgWt * goldRate;
       var labor = parseFloat(r[DK.laborAmt]) || 0;
       var diam = parseFloat(r[DK.diamAmount]) || 0;
       var sub = gold + labor + diam;
-      usdValDefault = sub ? '$' + (sub / 94).toFixed(2) : '—';
+      usdValDefault = sub ? '$' + (sub / window.APP_CONFIG.usdRate).toFixed(2) : '—';
     } else {
       usdValDefault = r[DK.usd] ? '$' + parseFloat(r[DK.usd]).toFixed(2) : '—';
     }
@@ -311,7 +311,7 @@ function renderCards(rows) {
     var subTotalVal;
     if (stDefault === 'Not Sold') {
       var net = parseFloat(r[DK.netWt]) || 0;
-      var mult = parseFloat(r[DK.multiplier]) || 0.595;
+      var mult = parseFloat(r[DK.multiplier]) || window.APP_CONFIG.defaultMultiplier;
       var pgWt = net * mult;
       var goldRate = window.GOLD_RATE || 16000;
       var gold = pgWt * goldRate;
@@ -321,7 +321,7 @@ function renderCards(rows) {
     } else {
       subTotalVal = parseFloat(r[DK.subTotal]) || 0;
     }
-    var plDefault = salePriceDefault && subTotalVal ? salePriceDefault - (subTotalVal / 94) : 0;
+    var plDefault = salePriceDefault && subTotalVal ? salePriceDefault - (subTotalVal / window.APP_CONFIG.usdRate) : 0;
     if (salePriceDefault) {
       summaryRows += '<div class="card-sum-row"><span>P/L</span><span style="color:' + (plDefault >= 0 ? 'var(--success)' : 'var(--error)') + '">' + (plDefault >= 0 ? '+' : '-') + '$' + fmtMoney(Math.abs(plDefault)) + '</span></div>';
     }
@@ -439,7 +439,7 @@ function renderTradeCards(rows) {
 
   if (!rows.length) {
     var msg = q ? 'No trades match "' + escapeHtml(q) + '"' : 'No trades found';
-    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:14px;">' + msg + '</div>';
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:calc(14px * var(--font-scale) / 100);">' + msg + '</div>';
     return;
   }
 
@@ -589,7 +589,7 @@ function renderUnifiedCards() {
   $('tradeCardList').classList.remove('active');
 
   if (!pageRows.length) {
-    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:14px;">No results found</div>';
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:calc(14px * var(--font-scale) / 100);">No results found</div>';
     return;
   }
 
@@ -706,7 +706,7 @@ function renderExpenseCards(rows) {
 
   if (!rows.length) {
     var msg = q ? 'No expenses match "' + escapeHtml(q) + '"' : 'No expenses found';
-    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:14px;">' + msg + '</div>';
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:calc(14px * var(--font-scale) / 100);">' + msg + '</div>';
     return;
   }
 
