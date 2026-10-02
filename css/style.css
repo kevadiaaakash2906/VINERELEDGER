@@ -512,6 +512,31 @@ body {
   background: rgba(26,115,232,0.08);
 }
 
+/* Settings gear — filled and circular so it stands out from the plain
+   outlined pills around it (Insights, Buyers) instead of blending in. */
+#settingsBtn {
+  background: var(--md-primary);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(16px * var(--font-scale) / 100);
+  box-shadow: var(--shadow-1);
+}
+#settingsBtn:hover {
+  background: #1557b0;
+  box-shadow: var(--shadow-2);
+}
+#settingsBtn:active {
+  background: #0d47a1;
+}
+
 /* Text button */
 .btn.text {
   background: transparent;
@@ -1195,7 +1220,7 @@ body.density-compact #expensesTable thead th {
 }
 
 #closePanel, #closeTradePanel, #closeExpensePanel, #closePaymentSearch,
-#closeCustomerProfile, #closeInsights, #closeBuyers, #closeBuyerForm, #closeMemoDetail {
+#closeCustomerProfile, #closeInsights, #closeBuyers, #closeBuyerForm, #closeMemoDetail, #closeSettings {
   width: 40px;
   height: 40px;
   display: flex;
@@ -1212,7 +1237,7 @@ body.density-compact #expensesTable thead th {
 }
 
 #closePanel:hover, #closeTradePanel:hover, #closeExpensePanel:hover, #closePaymentSearch:hover,
-#closeCustomerProfile:hover, #closeInsights:hover, #closeBuyers:hover, #closeBuyerForm:hover, #closeMemoDetail:hover {
+#closeCustomerProfile:hover, #closeInsights:hover, #closeBuyers:hover, #closeBuyerForm:hover, #closeMemoDetail:hover, #closeSettings:hover {
   background: #d93025;
   color: #ffffff;
 }
@@ -2721,7 +2746,7 @@ body.panel-open {
   .btn, .status-badge, .card-header, .pay-result-item,
   .pagination-bar button, .search-clear,
   #closePanel, #closeTradePanel, #closeExpensePanel, #closePaymentSearch,
-  #closeCustomerProfile, #closeInsights, #closeBuyers, #closeBuyerForm, #closeMemoDetail {
+  #closeCustomerProfile, #closeInsights, #closeBuyers, #closeBuyerForm, #closeMemoDetail, #closeSettings {
     min-height: 44px;
   }
   .view-toggle .btn {
