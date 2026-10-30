@@ -146,6 +146,10 @@ window.openOrderPanel = function(id) {
    'f_soldTo','f_salePrice','f_dateSold','f_diamondShape','f_soldToBuyerId'].forEach(function(fid) { var el = $(fid); if (el) el.value = ''; });
   if (window.syncDiamondShapePicker) window.syncDiamondShapePicker();
   $('f_multiplier').value = String(window.APP_CONFIG.defaultMultiplier);
+  // "Insert at Sr. No." box: only for NEW orders
+  if ($('f_insertSr')) $('f_insertSr').value = '';
+  if ($('err_f_insertSr')) $('err_f_insertSr').textContent = '';
+  if ($('insertSrField')) $('insertSrField').style.display = id ? 'none' : '';
   $('f_lCharges').value = String(window.APP_CONFIG.defaultLabor);
   if ($('f_flatLabor')) $('f_flatLabor').checked = false;
 
@@ -491,6 +495,15 @@ $('saveBtn').addEventListener('click', async function() {
   if (!$('f_style').value.trim()) { $('err_f_style').textContent = 'Required'; valid = false; }
   if (!$('f_netWt').value.trim()) { $('err_f_netWt').textContent = 'Required'; valid = false; }
 
+  if (!editingId && $('f_insertSr') && $('f_insertSr').value.trim() !== '') {
+    var chkSr = Number($('f_insertSr').value);
+    var chkMax = ORDERS.length > 0 ? Math.max.apply(null, ORDERS.map(function(r) { return parseInt(r[DK.sr]) || 0; })) : 0;
+    if (!Number.isInteger(chkSr) || chkSr < 1 || chkSr > chkMax + 1) {
+      $('err_f_insertSr').textContent = 'Enter a whole number from 1 to ' + (chkMax + 1);
+      valid = false;
+    }
+  }
+
   var netWt = parseFloat($('f_netWt').value) || 0;
   var grossWt = parseFloat($('f_grossWt').value) || 0;
   if (grossWt && netWt > grossWt) { $('err_f_netWt').textContent = 'Net Wt cannot exceed Gross Wt'; valid = false; }
@@ -634,10 +647,19 @@ $('saveBtn').addEventListener('click', async function() {
 
       showToast('Order #' + data[DK.sr] + ' updated successfully', 'success');
     } else {
-      var nextSr = ORDERS.length > 0 ? Math.max.apply(null, ORDERS.map(function(r) { return parseInt(r[DK.sr]) || 0; })) + 1 : 1;
-      data[DK.sr] = nextSr.toString();
-      await window.addOrder(data);
-      showToast('Order #' + nextSr + ' created successfully', 'success');
+      var maxSr = ORDERS.length > 0 ? Math.max.apply(null, ORDERS.map(function(r) { return parseInt(r[DK.sr]) || 0; })) : 0;
+      var insertSr = $('f_insertSr') ? parseInt($('f_insertSr').value) : NaN;
+
+      if (!isNaN(insertSr) && insertSr >= 1 && insertSr <= maxSr) {
+        // Insert in the middle and push the later orders down by one
+        await window.insertOrderAt(data, insertSr, ORDERS);
+        showToast('Order #' + insertSr + ' inserted. Later orders moved down by one.', 'success');
+      } else {
+        var nextSr = maxSr + 1;
+        data[DK.sr] = nextSr.toString();
+        await window.addOrder(data);
+        showToast('Order #' + nextSr + ' created successfully', 'success');
+      }
     }
     closePanel();
     await doFetchOrders();
