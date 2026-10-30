@@ -186,6 +186,12 @@
       <div class="section-card">
         <div class="section-card-title">Item Details</div>
         <div class="fields-grid compact">
+          <div class="field full-width" id="insertSrField" style="display:none;">
+            <label>Insert at Sr. No. (optional)</label>
+            <input id="f_insertSr" type="number" min="1" step="1" inputmode="numeric" placeholder="Leave empty to add at the end">
+            <div id="insertSrHint" style="font-size:12px;opacity:0.7;margin-top:4px;">Example: type 5 and this order becomes #5. Old #5 and everything after it move down by one.</div>
+            <div class="field-error" id="err_f_insertSr"></div>
+          </div>
           <div class="field full-width">
             <label>Customer *</label>
             <input id="f_customer" placeholder="e.g. HET">
@@ -650,11 +656,11 @@
 <script src="js/utils.js?v=4"></script>
 <script src="js/diamond-shape.js?v=1"></script>
 <script src="js/api.js?v=4"></script>
-<script src="js/firebase.js?v=4"></script>
+<script src="js/firebase.js?v=5"></script>
 <script src="js/app.js?v=9"></script>
 <script src="js/dashboard.js?v=8"></script>
 <script src="js/filters.js?v=4"></script>
-<script src="js/panel.js?v=8"></script>
+<script src="js/panel.js?v=9"></script>
 <script src="js/table.js?v=7"></script>
 <script src="js/payments.js?v=7"></script>
 <script src="js/trading.js?v=5"></script>
